@@ -170,19 +170,57 @@ namespace ConvertHero.Models
             BreakChords();
 
             // Normalize as many note transitions as possible down to single steps
-            //List<int> notes = LocalNormalization(this.Notes);
+            List<int> notes = LocalNormalization(this.Notes);
 
+            List<int> normed = this.Notes.Select(n => n.Type).ToList();
             // MAP all notes down to 0-4
             BestGuessMapper(this.Notes);
-
+            List<int> check = this.Notes.Select(n => n.Type).ToList();
+            //RiseAndFallMapper(this.Notes);
             // If there are any neighboring notes with equal Type, but differnt TONE, they must be fixed! (This happens in long runs/solos)
-            FixNormalizationErrors(this.Notes);
+            //FixNormalizationErrors(this.Notes);
 
             // Build the chords back out since they were stripped into single notes
             RebuildChords();
 
             // Fix sustains, since midi files sustain ALL notes
             FixSustains();
+        }
+
+        private void RiseAndFallMapper(List<ChartEvent> notes)
+        {
+            // Remove duplicate notes
+            int prev = -1;
+            List<int> dedupedNotes = new List<int>();
+            foreach(ChartEvent ev in notes)
+            {
+                if(ev.Type != prev)
+                {
+                    dedupedNotes.Add(ev.Type);
+                }
+
+                prev = ev.Type;
+            }
+
+            int currentNote = 0;
+            List<int> singleStepNotes = new List<int>();
+            foreach(int i in dedupedNotes)
+            {
+                if (i > currentNote)
+                {
+                    currentNote += 1;
+                }
+                else
+                {
+                    currentNote -= 1;
+                }
+
+                singleStepNotes.Add(currentNote);
+            }
+
+            int min = singleStepNotes.Min();
+            singleStepNotes = singleStepNotes.Select(n => n - min).ToList();
+
         }
 
         public void DrumReshape1()
@@ -618,24 +656,85 @@ namespace ConvertHero.Models
                 // How many of those unique notes are < ogNotes[i]
                 int current = localNotes.Where(t => t < ogNotes[i]).Count();
                 rawMapping.Add(current);
-                int prev = i > 0 ? localNotes.Where(t => t < ogNotes[i - 1]).Count() : current;
-                int translation = (events[i - 1].Type + (current - prev + 5)) % 5;
-
-                // If the current note is mapped the same button as the previous note AND they are different, then we need to nudge up/down
-                if (i > 0 && rawMapping[i] == rawMapping[i-1] && ogNotes[i - 1] == ogNotes[i])
-                {
-                    events[i].Type = translation;
-                }
-                // If the current note is the same tone as the previous note then we need to make them meatch
-                else if (i > 0 && ogNotes[i] == ogNotes[i-1])
-                {
-                    events[i].Type = events[i - 1].Type;
-                }
-                else
-                {
-                    events[i].Type = current;
-                }
             }
+
+            // find the normalization errors
+            for(int i = 1; i < rawMapping.Count - 1; i++)
+            {
+                int j = i + 1;
+                List<int> section = new List<int> { ogNotes[i] };
+                while (rawMapping[i] == rawMapping[j] && ogNotes[i] != ogNotes[j])
+                {
+                    section.Add(ogNotes[j]);
+                    j++;
+                }
+                j--;
+
+                if (section.Count > 1)
+                {
+                    // Fix the notes from i -> j
+                    section = FixSection(rawMapping[i - 1], section);
+                    for(int x = i; x <= j; x++)
+                    {
+                        rawMapping[x] = section[x - i];
+                    }
+                }
+
+                i = j;
+            }
+
+            for(int i = 0; i < rawMapping.Count; i++)
+            {
+                events[i].Type = rawMapping[i];
+            }
+        }
+
+        private List<int> FixSection(int start, List<int> section)
+        {
+            List<int> ogNotes = section;
+            List<int> rawMapping = new List<int>();
+            int window = 5;
+            for (int i = 0; i < ogNotes.Count; i++)
+            {
+                HashSet<int> localNotes = new HashSet<int> { ogNotes[i] };
+                int centerNote = ogNotes[i];
+                int j = 1;
+                while (localNotes.Count < window)
+                {
+                    // add notes j steps ahead of i and j steps behind i
+                    if (i + j < ogNotes.Count)
+                    {
+                        // Dont include jumps > 1/2 octave or notes > 2 measures away
+                        if (Math.Abs(centerNote - ogNotes[i + j]) < 6)
+                        {
+                            localNotes.Add(ogNotes[i + j]);
+                        }
+                    }
+
+                    if (localNotes.Count < window && i - j >= 0)
+                    {
+                        // Dont include jumps > 1/2 octave, or notes > 2 measures away
+                        if (Math.Abs(centerNote - ogNotes[i - j]) < 6)
+                        {
+                            localNotes.Add(ogNotes[i - j]);
+                        }
+                    }
+
+                    // Searched the WHOLE SONG without finding 5 unique notes smh.
+                    if (i + j >= ogNotes.Count && i - j < 0)
+                    {
+                        break;
+                    }
+
+                    j++;
+                }
+
+                // How many of those unique notes are < ogNotes[i]
+                int current = localNotes.Where(t => t < ogNotes[i]).Count();
+                rawMapping.Add(current);
+            }
+
+            return rawMapping;
         }
 
         private void BreakChords()
@@ -688,6 +787,8 @@ namespace ConvertHero.Models
                     }
                 }
             }
+
+            this.Notes = this.Notes.OrderBy(ev => ev.Tick).ToList();
         }
 
         private Dictionary<int, List<int>> BuildChordMap(int range, int degree, int width)
