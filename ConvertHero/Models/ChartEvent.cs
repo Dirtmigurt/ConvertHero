@@ -1,36 +1,78 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.Models
+﻿namespace ConvertHero.Models
 {
+    using System;
+
+    /// <summary>
+    /// ChartEvent contains all of the information about a note in a clone hero track.
+    /// </summary>
     public class ChartEvent : Event
     {
-        // Type of event, defined by the enum NoteType
+        /// <summary>
+        /// The type of the event.
+        /// </summary>
         public int Type = 0;
 
+        /// <summary>
+        /// The real instruments tone for this event.
+        /// </summary>
         public int Tone = 0;
 
-        // Number of ticks this Note is held for
+        /// <summary>
+        /// The number of ticks this note should be held for.
+        /// </summary>
         public long Sustain = -1;
 
-        // Chord indicators the number of notes that land on the same tick (for a guitar a note=1, chords=2+)
+        /// <summary>
+        /// Chord indicators the number of notes that land on the same tick (for a guitar a note=1, chords=2+)
+        /// </summary>
         public int Chord = 1;
 
+        /// <summary>
+        /// The number of tones that a chord event spans. If a chord is C2+C3, then the span = 1 octave = 12 tones.
+        /// </summary>
         public int ToneSpan = 0;
 
+        /// <summary>
+        /// Constructor for the ChartEvent class.
+        /// </summary>
+        /// <param name="tick">
+        /// The tick that this note falls on.
+        /// </param>
+        /// <param name="type">
+        /// The type of this note.
+        /// </param>
+        /// <param name="sustain">
+        /// how long the note is held for.
+        /// </param>
+        /// <param name="chord">
+        /// The number of ChartEvents that fall on the same tick.
+        /// </param>
+        /// <param name="span">
+        /// The span of tones that fall on the same tick.
+        /// </param>
         public ChartEvent(long tick, int type, long sustain = 0, int chord = 1, int span = 0)
         {
             this.Tick = tick;
             this.Type = type;
             this.Tone = type;
             this.Sustain = sustain;
-            this.Chord = 1;
+            this.Chord = chord;
             this.ToneSpan = span;
         }
 
+        /// <summary>
+        /// A safe parsing method used to convert a string formatted by Moonscraper to a ChartEvent.
+        /// </summary>
+        /// <param name="line">
+        /// The string containing all of the event information. Of the format "1920 = N 3 0"
+        /// "<Tick> = N <Type> <Sustain>"
+        /// </param>
+        /// <param name="chartEvent">
+        /// The chartEvent that is created from the input string.
+        /// </param>
+        /// <returns>
+        /// True if the chart event was successfully created.
+        /// </returns>
         public static bool TryParse(string line, out ChartEvent chartEvent)
         {
             chartEvent = null;
@@ -67,12 +109,21 @@ namespace ConvertHero.Models
             return true;
         }
 
+        /// <summary>
+        /// Convert the ChartEvent to a Moonscraper friendly line.
+        /// </summary>
+        /// <returns>
+        /// String of the format "<Tick> = N <Type> <Sustain>"
+        /// </returns>
         public override string ToString()
         {
             return $"  {this.Tick} = N {this.Type} {this.Sustain}";
         }
     }
 
+    /// <summary>
+    /// Enum containing all possible Types that Moonscraper supports
+    /// </summary>
     public enum NoteType
     {
         Green,
@@ -86,6 +137,9 @@ namespace ConvertHero.Models
         Unknown
     }
 
+    /// <summary>
+    /// Enum containing all of the Drum Note types
+    /// </summary>
     public enum DrumType
     {
         Kick,
@@ -96,6 +150,9 @@ namespace ConvertHero.Models
         Green
     }
 
+    /// <summary>
+    /// Enum containing all of the supported Clone Hero instruments.
+    /// </summary>
     public enum CloneHeroInstrument
     {
         Single,
@@ -103,6 +160,9 @@ namespace ConvertHero.Models
         Drums
     }
 
+    /// <summary>
+    /// Enum containing all of the supported Clone Hero difficulties.
+    /// </summary>
     public enum CloneHeroDifficulty
     {
         Expert,

@@ -1,17 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.Models
+﻿namespace ConvertHero.Models
 {
+    using System;
+
     public class SyncEvent : Event
     {
+        /// <summary>
+        /// The beats per minute specified by the event.
+        /// </summary>
         public double BeatsPerMinute = -1;
 
+        /// <summary>
+        /// The numerator of the time signature.
+        /// </summary>
         public int Numerator = -1;
 
+        /// <summary>
+        /// The denominator of the time signature.
+        /// </summary>
         public int Denominator = -1;
 
         /// <summary>
@@ -48,6 +53,13 @@ namespace ConvertHero.Models
             this.Denominator = denominator;
         }
 
+        /// <summary>
+        /// Conver the SyncEvent to a format Moonscraper understands.
+        /// </summary>
+        /// <returns>
+        /// If the SyncEvent is a tempo event then "<Tick> = B <BPM * 1000>"
+        /// If the SyncEvent is a time signature then "<Tick> = TS <Numerator> <LogBase2(Denominator)>"
+        /// </returns>
         public override string ToString()
         {
             if (this.BeatsPerMinute < 0)
@@ -69,6 +81,12 @@ namespace ConvertHero.Models
             }
         }
 
+        /// <summary>
+        /// Convert the sync event to an Event that Moonscraper understands.
+        /// </summary>
+        /// <returns>
+        /// String that moonscraper interprets as a section header.
+        /// </returns>
         public string ToEventString()
         {
             return $"  {this.Tick} = E \"section BPM TO {this.BeatsPerMinute}\"";
