@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.28307.539
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConvertHero", "ConvertHero\ConvertHero.csproj", "{5C97BE6E-48EC-4383-9061-BA78161197E9}"
 EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "ConvertHeroInstaller", "ConverHeroInstaller\ConverHeroInstaller.vdproj", "{4E4A6720-68E1-462A-AAB9-B4BC7F36F755}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,8 @@ Global
 		{5C97BE6E-48EC-4383-9061-BA78161197E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5C97BE6E-48EC-4383-9061-BA78161197E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5C97BE6E-48EC-4383-9061-BA78161197E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E4A6720-68E1-462A-AAB9-B4BC7F36F755}.Debug|Any CPU.ActiveCfg = Debug
+		{4E4A6720-68E1-462A-AAB9-B4BC7F36F755}.Release|Any CPU.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
