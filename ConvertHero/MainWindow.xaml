@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:ConvertHero"
         xmlns:dd="urn:gong-wpf-dragdrop"
         mc:Ignorable="d"
-        Title="MainWindow" Height="569.534" Width="600" SizeToContent="WidthAndHeight" Loaded="Window_Loaded">
+        Title="ConvertHero" Height="569.534" Width="600" SizeToContent="WidthAndHeight" Loaded="Window_Loaded">
     <Window.Resources>
         <Style TargetType="ListViewItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -14,96 +14,138 @@
         </Style>
     </Window.Resources>
     <StackPanel>
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="4*" />
-                <ColumnDefinition Width="1*" />
-            </Grid.ColumnDefinitions>
-            <TextBox Name="FilenameTextBox" Grid.Column="0" IsEnabled="False" Margin="5" Padding="5" />
-            <Button Name="btnOpenMidi" Grid.Column="1" Margin="5" Padding="5" Click="BtnOpenMidi_Click">Open Midi</Button>
-        </Grid>
-        <Label Content="Lead Guitar - Track Priority"/>
-        <DockPanel Margin="5">
-            <StackPanel DockPanel.Dock="Right" Margin="5,0">
-                <StackPanel.Resources>
-                    <Style TargetType="Button">
-                        <Setter Property="Margin" Value="0,0,0,5" />
-                    </Style>
-                </StackPanel.Resources>
-                <TextBlock FontWeight="Bold" Margin="5" TextAlignment="Center">Controls</TextBlock>
-                <Button Name="leadButtonUP" Click="LeadButtonUP_Click">UP</Button>
-                <Button Name="leadButtonDOWN" Click="LeadButtonDOWN_Click">DOWN</Button>
-                <Button Name="leadButtonRemoveTrack" Click="LeadButtonRemoveTrack_Click">Remove Track</Button>
-                <Button Name="playSelectedTrack" Click="PlaySelectedTrack_Click">Play Track</Button>
-            </StackPanel>
-            <ListView Name="LeadTrackListView" HorizontalAlignment="Stretch">
-                <ListView.View>
-                    <GridView>
-                        <GridView.Columns>
-                            <GridViewColumn Header="Track Title" DisplayMemberBinding="{Binding Title}" Width="Auto"/>
-                            <GridViewColumn Header="Note Count" DisplayMemberBinding="{Binding Count}" Width="Auto"/>
-                            <GridViewColumn Header="Min Note" DisplayMemberBinding="{Binding Min}" Width="Auto"/>
-                            <GridViewColumn Header="Max Note" DisplayMemberBinding="{Binding Max}" Width="Auto"/>
-                            <GridViewColumn Header="Instrument" DisplayMemberBinding="{Binding Instrument}" Width="Auto"/>
-                        </GridView.Columns>
-                    </GridView>
-                </ListView.View>
-            </ListView>
-        </DockPanel>
-        <Label Content="Bass Guitar - Track Priority"/>
-        <DockPanel Margin="5">
-            <StackPanel DockPanel.Dock="Right" Margin="5,0">
-                <StackPanel.Resources>
-                    <Style TargetType="Button">
-                        <Setter Property="Margin" Value="0,0,0,5" />
-                    </Style>
-                </StackPanel.Resources>
-                <TextBlock FontWeight="Bold" Margin="5" TextAlignment="Center">Options</TextBlock>
-                <Button Name="bassButtonUP" Click="BassButtonUP_Click">UP</Button>
-                <Button Name="bassButtonDOWN" Click="BassButtonDOWN_Click">DOWN</Button>
-                <Button Name="bassButtonRemoveTrack" Click="BassButtonRemoveTrack_Click">Remove Track</Button>
-            </StackPanel>
-            <ListView Name="BassTrackListView" HorizontalAlignment="Stretch">
-                <ListView.View>
-                    <GridView>
-                        <GridView.Columns>
-                            <GridViewColumn Header="Track Title" DisplayMemberBinding="{Binding Title}" Width="Auto"/>
-                            <GridViewColumn Header="Note Count" DisplayMemberBinding="{Binding Count}" Width="Auto"/>
-                            <GridViewColumn Header="Min Note" DisplayMemberBinding="{Binding Min}" Width="Auto"/>
-                            <GridViewColumn Header="Max Note" DisplayMemberBinding="{Binding Max}" Width="Auto"/>
-                            <GridViewColumn Header="Instrument" DisplayMemberBinding="{Binding Instrument}" Width="Auto"/>
-                        </GridView.Columns>
-                    </GridView>
-                </ListView.View>
-            </ListView>
-        </DockPanel>
-        <Label Content="Drums - Track Priority"/>
-        <DockPanel Margin="5">
-            <StackPanel DockPanel.Dock="Right" Margin="5,0">
-                <StackPanel.Resources>
-                    <Style TargetType="Button">
-                        <Setter Property="Margin" Value="0,0,0,5" />
-                    </Style>
-                </StackPanel.Resources>
-                <TextBlock FontWeight="Bold" Margin="5" TextAlignment="Center">Options</TextBlock>
-                <Button Name="drumButtonUP" Click="DrumButtonUP_Click">UP</Button>
-                <Button Name="drumButtonDOWN" Click="DrumButtonDOWN_Click">DOWN</Button>
-                <Button Name="drumButtonRemoveTrack" Click="DrumButtonRemoveTrack_Click">Remove Track</Button>
-            </StackPanel>
-            <ListView Name="DrumTrackListView" HorizontalAlignment="Stretch">
-                <ListView.View>
-                    <GridView>
-                        <GridView.Columns>
-                            <GridViewColumn Header="Track Title" DisplayMemberBinding="{Binding Title}" Width="Auto"/>
-                            <GridViewColumn Header="Note Count" DisplayMemberBinding="{Binding Count}" Width="Auto"/>
-                            <GridViewColumn Header="Min Note" DisplayMemberBinding="{Binding Min}" Width="Auto"/>
-                            <GridViewColumn Header="Max Note" DisplayMemberBinding="{Binding Max}" Width="Auto"/>
-                            <GridViewColumn Header="Instrument" DisplayMemberBinding="{Binding Instrument}" Width="Auto"/>
-                        </GridView.Columns>
-                    </GridView>
-                </ListView.View>
-            </ListView>
-        </DockPanel>
-        <Button Name="startConvertButton" Content="Convert" Click="StartConvertButton_Click" IsEnabled="False" Height="50" Margin="5" />
+        <TabControl>
+            <TabItem Header="MIDI Conversion">
+                <StackPanel Background="#FFE5E5E5" >
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4*" />
+                            <ColumnDefinition Width="1*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Name="FilenameTextBox" Grid.Column="0" IsEnabled="False" Margin="5" Padding="5" />
+                        <Button Name="btnOpenMidi" Grid.Column="1" Margin="5" Padding="5" Click="BtnOpenMidi_Click">Open Midi</Button>
+                    </Grid>
+                    <Label Content="Lead Guitar - Track Priority"/>
+                    <DockPanel Margin="5">
+                        <StackPanel DockPanel.Dock="Right" Margin="5,0">
+                            <StackPanel.Resources>
+                                <Style TargetType="Button">
+                                    <Setter Property="Margin" Value="0,0,0,5" />
+                                </Style>
+                            </StackPanel.Resources>
+                            <TextBlock FontWeight="Bold" Margin="5" TextAlignment="Center">Controls</TextBlock>
+                            <Button Name="leadButtonUP" Click="LeadButtonUP_Click">UP</Button>
+                            <Button Name="leadButtonDOWN" Click="LeadButtonDOWN_Click">DOWN</Button>
+                            <Button Name="leadButtonRemoveTrack" Click="LeadButtonRemoveTrack_Click">Remove Track</Button>
+                            <Button Name="playSelectedTrack" Click="PlaySelectedTrack_Click">Play Track</Button>
+                        </StackPanel>
+                        <ListView Name="LeadTrackListView" HorizontalAlignment="Stretch">
+                            <ListView.View>
+                                <GridView>
+                                    <GridView.Columns>
+                                        <GridViewColumn Header="Track Title" DisplayMemberBinding="{Binding Title}" Width="Auto"/>
+                                        <GridViewColumn Header="Note Count" DisplayMemberBinding="{Binding Count}" Width="Auto"/>
+                                        <GridViewColumn Header="Min Note" DisplayMemberBinding="{Binding Min}" Width="Auto"/>
+                                        <GridViewColumn Header="Max Note" DisplayMemberBinding="{Binding Max}" Width="Auto"/>
+                                        <GridViewColumn Header="Instrument" DisplayMemberBinding="{Binding Instrument}" Width="Auto"/>
+                                    </GridView.Columns>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+                    <Label Content="Bass Guitar - Track Priority"/>
+                    <DockPanel Margin="5">
+                        <StackPanel DockPanel.Dock="Right" Margin="5,0">
+                            <StackPanel.Resources>
+                                <Style TargetType="Button">
+                                    <Setter Property="Margin" Value="0,0,0,5" />
+                                </Style>
+                            </StackPanel.Resources>
+                            <TextBlock FontWeight="Bold" Margin="5" TextAlignment="Center">Options</TextBlock>
+                            <Button Name="bassButtonUP" Click="BassButtonUP_Click">UP</Button>
+                            <Button Name="bassButtonDOWN" Click="BassButtonDOWN_Click">DOWN</Button>
+                            <Button Name="bassButtonRemoveTrack" Click="BassButtonRemoveTrack_Click">Remove Track</Button>
+                        </StackPanel>
+                        <ListView Name="BassTrackListView" HorizontalAlignment="Stretch">
+                            <ListView.View>
+                                <GridView>
+                                    <GridView.Columns>
+                                        <GridViewColumn Header="Track Title" DisplayMemberBinding="{Binding Title}" Width="Auto"/>
+                                        <GridViewColumn Header="Note Count" DisplayMemberBinding="{Binding Count}" Width="Auto"/>
+                                        <GridViewColumn Header="Min Note" DisplayMemberBinding="{Binding Min}" Width="Auto"/>
+                                        <GridViewColumn Header="Max Note" DisplayMemberBinding="{Binding Max}" Width="Auto"/>
+                                        <GridViewColumn Header="Instrument" DisplayMemberBinding="{Binding Instrument}" Width="Auto"/>
+                                    </GridView.Columns>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+                    <Label Content="Drums - Track Priority"/>
+                    <DockPanel Margin="5">
+                        <StackPanel DockPanel.Dock="Right" Margin="5,0">
+                            <StackPanel.Resources>
+                                <Style TargetType="Button">
+                                    <Setter Property="Margin" Value="0,0,0,5" />
+                                </Style>
+                            </StackPanel.Resources>
+                            <TextBlock FontWeight="Bold" Margin="5" TextAlignment="Center">Options</TextBlock>
+                            <Button Name="drumButtonUP" Click="DrumButtonUP_Click">UP</Button>
+                            <Button Name="drumButtonDOWN" Click="DrumButtonDOWN_Click">DOWN</Button>
+                            <Button Name="drumButtonRemoveTrack" Click="DrumButtonRemoveTrack_Click">Remove Track</Button>
+                        </StackPanel>
+                        <ListView Name="DrumTrackListView" HorizontalAlignment="Stretch">
+                            <ListView.View>
+                                <GridView>
+                                    <GridView.Columns>
+                                        <GridViewColumn Header="Track Title" DisplayMemberBinding="{Binding Title}" Width="Auto"/>
+                                        <GridViewColumn Header="Note Count" DisplayMemberBinding="{Binding Count}" Width="Auto"/>
+                                        <GridViewColumn Header="Min Note" DisplayMemberBinding="{Binding Min}" Width="Auto"/>
+                                        <GridViewColumn Header="Max Note" DisplayMemberBinding="{Binding Max}" Width="Auto"/>
+                                        <GridViewColumn Header="Instrument" DisplayMemberBinding="{Binding Instrument}" Width="Auto"/>
+                                    </GridView.Columns>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+                    <Button Name="startConvertButton" Content="Convert" Click="StartConvertButton_Click" IsEnabled="False" Height="50" Margin="5" />
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="Audio File Conversion">
+                <StackPanel Background="#FFE5E5E5" >
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4*" />
+                            <ColumnDefinition Width="1*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Name="AudioFileTextBox" Grid.Column="0" IsEnabled="False" Margin="5" Padding="5" />
+                        <Button Name="btnOpenAudio" Grid.Column="1" Margin="5" Padding="5" Click="BtnOpenAudio_Click">Open Audio File</Button>
+                    </Grid>
+                    <Button Name="startMagicButton" Content="Generate Chart From Audio" IsEnabled="False" Height="50" Margin="5" />
+                    <DockPanel>
+                        <StatusBar DockPanel.Dock="Bottom" HorizontalAlignment="Stretch">
+                            <StatusBar.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="4*"/>
+                                        </Grid.ColumnDefinitions>
+                                    </Grid>
+                                </ItemsPanelTemplate>
+                            </StatusBar.ItemsPanel>
+                            <StatusBarItem>
+                                <TextBlock>Ready.</TextBlock>
+                            </StatusBarItem>
+                            <StatusBarItem Grid.Column="1" HorizontalContentAlignment="Stretch">
+                                <ProgressBar Name="ConversionProgress" Value="0" Height="15"/>
+                            </StatusBarItem>
+                        </StatusBar>
+                    </DockPanel>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
     </StackPanel>
 </Window>

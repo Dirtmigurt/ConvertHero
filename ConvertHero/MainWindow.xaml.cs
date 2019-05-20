@@ -14,6 +14,10 @@
     using System;
     using System.IO;
     using Melanchall.DryWetMidi.Devices;
+    using ConvertHero.AudioFileHelpers;
+    using System.Threading.Tasks;
+    using ConvertHero.CNTKModels;
+    using CNTK;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -56,7 +60,7 @@
         private void BtnOpenMidi_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog fileDialog = new OpenFileDialog();
-            fileDialog.Filter = "Midi|*.mid";
+            fileDialog.Filter = "MIDI File|*.mid";
             DialogResult result = fileDialog.ShowDialog();
             switch (result)
             {
@@ -88,6 +92,163 @@
                 default:
                     break;
             }
+        }
+
+        private void ProcessMp3File(string file)
+        {
+            // test audio file
+            int frameRate = 50;
+            using (AudioFileHelpers.SampleReader reader = new AudioFileHelpers.SampleReader(file, frameRate, 2048))
+            {
+                float[] buffer;
+                Windowing hannWindow = new Windowing(WindowingType.Hann);
+                SimpleOnsetDetectors onsets = new SimpleOnsetDetectors(reader.SampleRate);
+                MelBands melBands = new MelBands(40, reader.SampleRate);
+                List<float[]> melFrames = new List<float[]>();
+                List<float[]> triangleBandFrames = new List<float[]>();
+
+                // Lists to store onset detection values for each frame
+                List<float> superFluxValues = new List<float>();
+                List<float> hfcValues = new List<float>();
+                List<float> complexValues = new List<float>();
+                List<float> complexPhaseValues = new List<float>();
+                List<float> fluxValues = new List<float>();
+                List<float> melFluxValues = new List<float>();
+                List<float> rmsValues = new List<float>();
+                long currentFrame = 0;
+                long maxFrame = reader.TotalFrames(frameRate);
+                while (reader.Read(out buffer) > 0)
+                {
+                    // run buffer through Hann windowing
+                    hannWindow.Compute(ref buffer);
+
+                    // calculate the frequency magnitues of the hann window
+                    (float[] mag, float[] phase) = CartesianToPolar.ConvertComplexToPolar(Spectrum.ComputeFFT(buffer, reader.SampleRate));
+
+                    // Calculate the simple onset detection functions
+                    hfcValues.Add(onsets.ComputeHFC(mag));
+                    complexValues.Add(onsets.ComputeComplex(mag, phase));
+                    complexPhaseValues.Add(onsets.ComputeComplexPhase(mag, phase));
+                    fluxValues.Add(onsets.ComputeFlux(mag));
+                    melFluxValues.Add(onsets.ComputeMelFlux(mag));
+                    rmsValues.Add(onsets.ComputeRms(mag));
+                    melFrames.Add(melBands.Compute(mag));
+
+                    // report progress
+                    if(currentFrame % 10 == 0)
+                    {
+                        this.ConversionProgress.Dispatcher.Invoke(() => this.ConversionProgress.Value = 100.0 * currentFrame / maxFrame);
+                    }
+                    
+                    currentFrame++;
+                }
+
+                NoveltyCurve ncurve = new NoveltyCurve(WeightType.Linear, frameRate, false);
+                List<float> novelty = ncurve.ComputeAll(melFrames).ToList();
+
+                // NORMALIZE ALL OF THE ONSET FUNCTIONS
+                // USEFUL Detectors = HFC/COMPLEX/MEL FLUX/NOVELTY
+                SignalNormalization.MedianCenterNormalize(hfcValues);
+                SignalNormalization.MedianCenterNormalize(complexValues);
+                SignalNormalization.MedianCenterNormalize(melFluxValues);
+                PeakDetection peakDetector = new PeakDetection();
+                novelty = peakDetector.Compute(novelty.ToArray());
+                SignalNormalization.MedianCenterNormalize(novelty);
+
+
+                melFrames = MathHelpers.Transpose(melFrames);
+                for (int band = 0; band < melFrames.Count; band++)
+                {
+                    SignalNormalization.MeanCenterNormalize(melFrames[band]);
+                }
+                melFrames = MathHelpers.Transpose(melFrames);
+                melFrames = ComputeDerivative(melFrames);
+
+                int frames = melFrames.Count;
+                float[] superFeature = new float[novelty.Count];
+                for (int frame = 0; frame < frames; frame++)
+                {
+                    superFeature[frame] += 2 * (int)hfcValues[frame]; // Not very noisy, high quality peaks
+                    superFeature[frame] += 2 * (int)complexValues[frame]; // Slightly noisy 
+                    superFeature[frame] += 2 * (int)melFluxValues[frame]; // Slightly noisy
+                    superFeature[frame] += 1 * (int)novelty[frame];       // Very noisy, low quality peaks
+                }
+
+                SignalNormalization.MedianCenterNormalize(superFeature);
+                superFeature = peakDetector.Compute(superFeature).ToArray();
+
+                int chartResolution = 480; // 480 ticks per quarter note =
+                int beatsPerMinute = 120;  // There are BPM * ChartResolution ticks/minute or BPM * ChartResolution / 60 ticks/second
+                double ticksPerSecond = chartResolution * beatsPerMinute / 60.0;
+                List<ChartEvent> events = new List<ChartEvent>();
+                List<SyncEvent> syncTrack = new List<SyncEvent> { new SyncEvent(0, 120) };
+                for(int i = 0; i < superFeature.Length; i++)
+                {
+                    if(superFeature[i] > float.Epsilon)
+                    {
+                        // This is probably a note
+                        double absTime = i * (1f / frameRate);
+                        long tick = (long)(absTime * ticksPerSecond);
+                        int tone = GuessTone(melFrames[i]);
+                        events.Add(new ChartEvent(tick, tone));
+                    }
+                }
+
+                NoteTrack track = new NoteTrack(events, syncTrack, chartResolution, GeneralMidiProgram.ElectricGuitar1, null);
+                track.GuitarReshape();
+
+                using (StreamWriter writer = new StreamWriter(Path.ChangeExtension(file, ".chart")))
+                {
+                    // Write SONG section
+                    writer.WriteLine(string.Format(Properties.Resources.SongSection, chartResolution, Path.GetFileName(file)));
+
+                    // Write SYNC section
+                    writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", syncTrack.Select(s => s.ToString()))));
+
+                    // LEAD TRACKS
+                    track.CloneHeroInstrument = CloneHeroInstrument.Single.ToString();
+
+                    // Write Note section
+                    writer.WriteLine(string.Format(Properties.Resources.NoteTrack, $"{CloneHeroDifficulty.Expert}{CloneHeroInstrument.Single}", string.Join("\n", track.Notes.Select(n => n.ToString()))));
+                }
+
+                return;
+            }
+        }
+
+        private static int GuessTone(float[] melBands)
+        {
+            int maxIndex = 0;
+            float max = 0;
+            for(int i = 0; i < melBands.Length; i++)
+            {
+                if(melBands[i] > max)
+                {
+                    max = melBands[i];
+                    maxIndex = i;
+                }
+            }
+
+            return maxIndex;
+        }
+
+        private static List<float[]> ComputeDerivative(List<float[]> melFrames)
+        {
+            // get the magnitude of each tones change
+            List<float[]> derivative = new List<float[]> { melFrames[0] };
+            for(int i = 1; i < melFrames.Count; i++)
+            {
+                float[] row = new float[melFrames[i].Length];
+                for(int j = 0; j < melFrames[i].Length; j++)
+                {
+                    // Ignore negative values (offsets)
+                    row[j] = Math.Max(melFrames[i][j] - melFrames[i - 1][j], 0);
+                }
+
+                derivative.Add(row);
+            }
+
+            return derivative;
         }
 
         /// <summary>
@@ -671,6 +832,37 @@
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // Can use this for test code/debugging
+            //int[] imageDim = new int[] { 40, 40, 1 };
+            //Variable input = CNTKLib.InputVariable(imageDim, DataType.Float, "features");
+            //RecurrentConvolutionalNeuralNetwork.RecurrentCNN(input, DeviceDescriptor.GPUDevice(0), imageDim);
+        }
+
+        private async void BtnOpenAudio_Click(object sender, RoutedEventArgs e)
+        {
+            TrainingWindow twindow = new TrainingWindow();
+            twindow.ShowDialog();
+            OpenFileDialog fileDialog = new OpenFileDialog();
+            fileDialog.Filter = "Audio File|*.mp3;*.ogg;*.wav";
+            DialogResult result = fileDialog.ShowDialog();
+            switch (result)
+            {
+                case System.Windows.Forms.DialogResult.OK:
+                    string file = fileDialog.FileName;
+                    this.AudioFileTextBox.Text = file;
+                    try
+                    {
+                        await Task.Run(() => ProcessMp3File(file));
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show(ex.Message, "Load Audio Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+
+                    break;
+                case System.Windows.Forms.DialogResult.Cancel:
+                default:
+                    break;
+            }
         }
     }
 }
