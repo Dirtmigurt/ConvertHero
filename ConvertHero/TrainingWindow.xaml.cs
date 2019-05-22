@@ -81,7 +81,7 @@
         private void TrainModelButton_Click(object sender, RoutedEventArgs e)
         {
             //GetMidiFileLabels(@"E:\clonehero-win64\Songs\Rock Band 3 DLC\Rock Band 3 - DLC\Breaking Benjamin - Sooner or Later\notes.mid", 50);
-            //BuildMasterFeaturefile();
+            BuildMasterFeaturefile();
             // Load the Audio file (features)
             //float[,] features = GetAudioFileFeatures();
 
@@ -107,7 +107,7 @@
             //using (StreamWriter multiWriter = new StreamWriter(File.OpenWrite(@"D:\Workspace\CloneHeroMultiFeatureSet.ctf")))
             using (StreamWriter onsetWriter = new StreamWriter(File.OpenWrite(@"D:\Workspace\CloneHeroOnsetFeatureSetV4.ctf")))
             {
-                foreach (string folder in GetLeafDirectories(@"E:\clonehero-win64\Songs\Anti Hero\Anti Hero\Tier 40 - [FULL ALBUM] Aeon Bridge - Event Horizon (2017) (2DHumanity)"))
+                foreach (string folder in GetLeafDirectories(@"E:\clonehero-win64\Songs\Guitar Hero - Metallica\31 - Seek and Destroy"))
                 {
                     try
                     {
@@ -133,12 +133,14 @@
                             audioFiles.Add(wavFile);
                         }
 
-                        int frameRate = 75;
+                        int frameRate = 50;
 
                         // Load the chart file (labels)
                         float[,] y = string.IsNullOrWhiteSpace(midFile) ? GetChartFileLabels(chartFile, frameRate) : GetMidiFileLabels(midFile, frameRate);
 
-                        int window = 0;
+                        // look back 1/4 of a second, and ahead 1/4 of a second
+                        int window = frameRate / 4;
+
                         // Load the Audio file (features)
                         float[,] x = GetAudioFileFeatures(audioFiles, frameRate, 1024, window);
 
@@ -325,8 +327,8 @@
 
                     // calculate the frequency magnitues of the hann window
                     //(float[] mag, float[] phase) = CartesianToPolar.ConvertComplexToPolar(Spectrum.ComputeFFT(buffer, mfSampleReader.SampleRate));
-                    float[] decibels = MathHelpers.ComputeBinMagnitudes(Spectrum.ComputeFFT(buffer, mfSampleReader.SampleRate), 100);
-
+                    float[] decibels = MathHelpers.ComputeBinMagnitudes(Spectrum.ComputeFFT(buffer, mfSampleReader.SampleRate), maxBins: 100);
+                    melFrames.Add(decibels);
                     // Calculate the simple onset detection functions
                     //hfcValues.Add(onsets.ComputeHFC(mag));
                     //complexValues.Add(onsets.ComputeComplex(mag, phase));
@@ -431,7 +433,7 @@
                     // add to the elapsed, update the bpm/tickDelta
                     if(syncEvent.BeatsPerMinute > 0)
                     {
-                        tickDelta = 60 / (chartResolution * syncEvent.BeatsPerMinute);
+                        tickDelta = 60.0 / (chartResolution * syncEvent.BeatsPerMinute);
                     }
                 }
                 else

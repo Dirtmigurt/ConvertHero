@@ -62,14 +62,30 @@ namespace ConvertHero.AudioFileHelpers
             return (float)(12 * Math.Log(hz / 440.0) / Math.Log(2.0) + 69.0);
         }
 
-        public static float[] ComputeBinMagnitudes(Complex32[] fft, int maxBins = int.MaxValue)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="fft"></param>
+        /// <param name="gain"></param>
+        /// <param name="range"></param>
+        /// <param name="windowCorrectionFactor">
+        /// No Windowing = 1.0, Hanning=2.0, Flattop=4.18, Blackman=2.8, Hamming=1.85, Kaiser-Bessel=2.49
+        /// </param>
+        /// <param name="maxBins"></param>
+        /// <returns></returns>
+        public static float[] ComputeBinMagnitudes(Complex32[] fft, int gain = 20, int range = 80, float windowCorrectionFactor = 2.0f, int maxBins = int.MaxValue)
         {
             int fftLength = fft.Length / 2;
-            float[] result = new float[fftLength];
             int stop = Math.Min(maxBins, fftLength);
+            float[] result = new float[stop];
+            
             for(int i = 0; i < stop; i++)
             {
-                result[i] = AmplitudeToDecibel(2 * fft[i].Magnitude / fftLength);
+                float preNorm = AmplitudeToDecibel(2 * fft[i].Magnitude / (fftLength / windowCorrectionFactor));
+
+                preNorm = Math.Min(0, preNorm + gain);
+                preNorm = Math.Max(-range, preNorm);
+                result[i] = (preNorm / range) + 1;
             }
 
             return result;

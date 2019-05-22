@@ -836,8 +836,8 @@
             //Variable input = CNTKLib.InputVariable(imageDim, DataType.Float, "features");
             //RecurrentConvolutionalNeuralNetwork.RecurrentCNN(input, DeviceDescriptor.GPUDevice(0), imageDim);
             float[] a = new float[] { 1, 0, 0, 0, 0 };
-            float[] b = new float[] { 0, 1, 0, 0, 0 };
-            float[] res = RunCNTKFunction(CNTKLib.CrossEntropyWithSoftmax, a, b);
+            float[] b = new float[] { 0, 0, 0, 0, 1 };
+            float[] res = RunCNTKFunction(CNTKLib.BinaryCrossEntropy, a, b);
             ;
         }
 
