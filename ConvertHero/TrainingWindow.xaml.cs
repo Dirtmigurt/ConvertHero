@@ -32,7 +32,7 @@
         {
             OpenFileDialog fileDialog = new OpenFileDialog();
             fileDialog.Filter = "Audio|*.mp3;*.ogg;*.wav";
-            DialogResult result = fileDialog.ShowDialog();
+            DialogResult result = fileDialog.ShowDialog ();
             switch (result)
             {
                 case System.Windows.Forms.DialogResult.OK:
@@ -92,9 +92,9 @@
             //outputFile = System.IO.Path.ChangeExtension(this.AudioFileName, "Mel.ctf");
             //WriteFeatureLabelFile(outputFile, features, notesbyFrames);
 
-            string featureFile = @"D:\Workspace\CloneHeroOnsetFeatureSetV2.ctf";
+            string featureFile = @"D:\Workspace\CloneHeroOnsetFeatureSetV4.ctf";
             //CNTKModels.LSTMSequenceClassifier.ValidateModelFile(@"C:\test\LSTMOnset.model", featureFile, DeviceDescriptor.GPUDevice(0));
-            CNTKModels.LSTMSequenceClassifier.Train(DeviceDescriptor.GPUDevice(0), featureFile); 
+            CNTKModels.LSTMSequenceClassifier.Train(DeviceDescriptor.GPUDevice(0), featureFile, true); 
             //CNTKModels.ConvolutionalNeuralNetwork.TrainAndEvaluate(DeviceDescriptor.GPUDevice(0), featureFile, true, false);
             //CNTKModels.RecurrentConvolutionalNeuralNetwork.TrainAndEvaluate(DeviceDescriptor.GPUDevice(0), featureFile, true);
             //CNTKModels.LSTMSequenceClassifier.ValidateModelFile(@"C:\test\Temp\Convolution.model", featureFile, DeviceDescriptor.GPUDevice(0));
@@ -105,7 +105,7 @@
         private void BuildMasterFeaturefile()
         {
             //using (StreamWriter multiWriter = new StreamWriter(File.OpenWrite(@"D:\Workspace\CloneHeroMultiFeatureSet.ctf")))
-            using (StreamWriter onsetWriter = new StreamWriter(File.OpenWrite(@"D:\Workspace\CloneHeroOnsetFeatureSetV2.ctf")))
+            using (StreamWriter onsetWriter = new StreamWriter(File.OpenWrite(@"D:\Workspace\CloneHeroOnsetFeatureSetV4.ctf")))
             {
                 foreach (string folder in GetLeafDirectories(@"E:\clonehero-win64\Songs\Anti Hero\Anti Hero\Tier 40 - [FULL ALBUM] Aeon Bridge - Event Horizon (2017) (2DHumanity)"))
                 {
@@ -133,12 +133,14 @@
                             audioFiles.Add(wavFile);
                         }
 
-                        // Load the chart file (labels)
-                        float[,] y = string.IsNullOrWhiteSpace(midFile) ? GetChartFileLabels(chartFile, 50) : GetMidiFileLabels(midFile, 50);
+                        int frameRate = 75;
 
-                        int window = 4;
+                        // Load the chart file (labels)
+                        float[,] y = string.IsNullOrWhiteSpace(midFile) ? GetChartFileLabels(chartFile, frameRate) : GetMidiFileLabels(midFile, frameRate);
+
+                        int window = 0;
                         // Load the Audio file (features)
-                        float[,] x = GetAudioFileFeatures(audioFiles, 50, 2048, window);
+                        float[,] x = GetAudioFileFeatures(audioFiles, frameRate, 1024, window);
 
                         // Write the song to the output files
                         int featureLength = x.GetLength(1);
@@ -176,12 +178,12 @@
 
                             if(onset)
                             {
-                                onsetFeatureColumns.Add("0");
+                                //onsetFeatureColumns.Add("0");
                                 onsetFeatureColumns.Add("1");
                             }
                             else
                             {
-                                onsetFeatureColumns.Add("1");
+                                //onsetFeatureColumns.Add("1");
                                 onsetFeatureColumns.Add("0");
                             }
 
@@ -322,7 +324,8 @@
                     hannWindow.Compute(ref buffer);
 
                     // calculate the frequency magnitues of the hann window
-                    (float[] mag, float[] phase) = CartesianToPolar.ConvertComplexToPolar(Spectrum.ComputeFFT(buffer, mfSampleReader.SampleRate));
+                    //(float[] mag, float[] phase) = CartesianToPolar.ConvertComplexToPolar(Spectrum.ComputeFFT(buffer, mfSampleReader.SampleRate));
+                    float[] decibels = MathHelpers.ComputeBinMagnitudes(Spectrum.ComputeFFT(buffer, mfSampleReader.SampleRate), 100);
 
                     // Calculate the simple onset detection functions
                     //hfcValues.Add(onsets.ComputeHFC(mag));
@@ -331,7 +334,7 @@
                     //fluxValues.Add(onsets.ComputeFlux(mag));
                     //melFluxValues.Add(onsets.ComputeMelFlux(mag));
                     //rmsValues.Add(onsets.ComputeRms(mag));
-                    melFrames.Add(melBands.Compute(mag));
+                    //melFrames.Add(melBands.Compute(mag));
 
                     // run the spectrum through triangle filter bands
                     //float[] tribands = triBands.ComputeTriangleBands(mag);

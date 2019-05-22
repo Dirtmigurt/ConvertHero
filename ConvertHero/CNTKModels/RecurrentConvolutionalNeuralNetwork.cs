@@ -120,14 +120,14 @@ namespace ConvertHero.CNTKModels
             // MAX POOLING 1x2
             Function pooling3 = MaxPoolingLayer(layer6, 3, 3, 1, 1);
 
-            // RESHAPE 40x40x64 -> 
+            // RESHAPE to 1xN -> 
             Function reshape = CNTKLib.Reshape(pooling3, new int[] { pooling3.Output.Shape.Dimensions.Aggregate((d1, d2) => d1 * d2) });
 
             // Bidirectional GRU
             Function gru1 = BidirectionalGRU(reshape, device);
 
             // Bidirectional GRU
-            //Function gru2 = BidirectionalGRU(gru1, device);
+            Function gru2 = BidirectionalGRU(gru1, device);
 
             // Dense
             Function dense1 = TestHelper.Dense(gru1, 64, device, Activation.ReLU);
@@ -139,14 +139,14 @@ namespace ConvertHero.CNTKModels
             double convWScale = 0.26;
             int kernelWidth = 3;
             int kernelHeight = 3;
-            var convParams = new Parameter(new int[] { kernelWidth, kernelHeight, inputChannels, outputFeatureMaps }, DataType.Float, CNTKLib.GlorotUniformInitializer(convWScale, -1, 2), device);
+            var convParams = new Parameter(new int[] { kernelWidth, kernelHeight, inputChannels, outputFeatureMaps }, DataType.Float, CNTKLib.GlorotUniformInitializer(convWScale, -1, 2, 4), device);
 
             // horizontalStride=1, verticalStride=1
             Function convFunction = CNTKLib.Convolution(convParams, features, new int[] { 1, 1, inputChannels });
 
             // Apply batch normalization
-            Parameter biasParams = new Parameter(new int[] { NDShape.InferredDimension }, 0.25f, device, "");
-            Parameter scaleParams = new Parameter(new int[] { NDShape.InferredDimension }, 0.25f, device, "");
+            Parameter biasParams = new Parameter(new int[] { NDShape.InferredDimension }, DataType.Float, CNTKLib.GlorotUniformInitializer(CNTKLib.DefaultParamInitScale, CNTKLib.SentinelValueForInferParamInitRank, CNTKLib.SentinelValueForInferParamInitRank, 1));
+            Parameter scaleParams = new Parameter(new int[] { NDShape.InferredDimension }, DataType.Float,CNTKLib.GlorotUniformInitializer(CNTKLib.DefaultParamInitScale, CNTKLib.SentinelValueForInferParamInitRank, CNTKLib.SentinelValueForInferParamInitRank, 1));
             Constant runningMean = new Constant(new int[] { NDShape.InferredDimension }, 0.0f, device);
             Constant runningInvStd = new Constant(new int[] { NDShape.InferredDimension }, 0.0f, device);
             Constant runningCount = Constant.Scalar(0.0f, device);
@@ -154,7 +154,6 @@ namespace ConvertHero.CNTKModels
 
             //Apply RELU Activation function
             return CNTKLib.ReLU(normalizedConv);
-            //return CNTKLib.ReLU(convFunction);
         }
 
         private static Function MaxPoolingLayer(Variable operand, int width, int height, int hStride, int vStride)
@@ -164,8 +163,7 @@ namespace ConvertHero.CNTKModels
 
         private static Function BidirectionalGRU(Variable input, DeviceDescriptor device)
         {
-            Parameter weights = new Parameter(input.Shape, 0.25f, device, "");
-            weights = new Parameter(new int[] { NDShape.InferredDimension, NDShape.InferredDimension }, DataType.Float, 0);
+            Parameter weights = new Parameter(new int[] { NDShape.InferredDimension, NDShape.InferredDimension }, DataType.Float, CNTKLib.GlorotUniformInitializer(CNTKLib.DefaultParamInitScale, CNTKLib.SentinelValueForInferParamInitRank, CNTKLib.SentinelValueForInferParamInitRank, 1));
             Function rnn = CNTKLib.OptimizedRNNStack(input, weights, 2, 64, true, "gru");
             return CNTKLib.Tanh(rnn);
         }

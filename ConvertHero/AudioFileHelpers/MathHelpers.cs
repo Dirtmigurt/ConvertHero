@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MathNet.Numerics;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -59,6 +60,19 @@ namespace ConvertHero.AudioFileHelpers
         public static float HertzToCents(float hz)
         {
             return (float)(12 * Math.Log(hz / 440.0) / Math.Log(2.0) + 69.0);
+        }
+
+        public static float[] ComputeBinMagnitudes(Complex32[] fft, int maxBins = int.MaxValue)
+        {
+            int fftLength = fft.Length / 2;
+            float[] result = new float[fftLength];
+            int stop = Math.Min(maxBins, fftLength);
+            for(int i = 0; i < stop; i++)
+            {
+                result[i] = AmplitudeToDecibel(2 * fft[i].Magnitude / fftLength);
+            }
+
+            return result;
         }
 
         public static float AmplitudeToDecibel(float f)

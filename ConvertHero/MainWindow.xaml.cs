@@ -835,6 +835,25 @@
             //int[] imageDim = new int[] { 40, 40, 1 };
             //Variable input = CNTKLib.InputVariable(imageDim, DataType.Float, "features");
             //RecurrentConvolutionalNeuralNetwork.RecurrentCNN(input, DeviceDescriptor.GPUDevice(0), imageDim);
+            float[] a = new float[] { 1, 0, 0, 0, 0 };
+            float[] b = new float[] { 0, 1, 0, 0, 0 };
+            float[] res = RunCNTKFunction(CNTKLib.CrossEntropyWithSoftmax, a, b);
+            ;
+        }
+
+        private float[] RunCNTKFunction(Func<Variable, Variable, Function> f, float[] a, float[] b)
+        {
+            Variable aVar = Variable.InputVariable(new int[] { a.Length }, DataType.Float);
+            Value aVal = new Value(new NDArrayView(aVar.Shape, a, DeviceDescriptor.CPUDevice));
+
+            Variable bVar = Variable.InputVariable(new int[] { b.Length }, DataType.Float);
+            Value bVal = new Value(new NDArrayView(bVar.Shape, b, DeviceDescriptor.CPUDevice));
+
+            Function func = f(aVar, bVar);
+            Variable output = func.Output;
+            Dictionary<Variable, Value> outputDictionary = new Dictionary<Variable, Value> { { output, null } };
+            func.Evaluate(new Dictionary<Variable, Value> { { aVar, aVal }, { bVar, bVal } }, outputDictionary, DeviceDescriptor.CPUDevice);
+            return outputDictionary[output].GetDenseData<float>(output).First().ToArray();
         }
 
         private async void BtnOpenAudio_Click(object sender, RoutedEventArgs e)

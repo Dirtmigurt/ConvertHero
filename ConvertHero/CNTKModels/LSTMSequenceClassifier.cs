@@ -9,24 +9,37 @@ namespace ConvertHero.CNTKModels
 {
     public static class LSTMSequenceClassifier
     {
-        public static void Train(DeviceDescriptor device, string ctfFile)
+        public static void Train(DeviceDescriptor device, string ctfFile, bool useBuiltInRNN = false)
         {
-            const int inputDim = 40 * 9;
+            const int inputDim = 40;
             const int cellDim = inputDim * 5;
             const int hiddenDim = 2;
             const int embeddingDim = 3;
             // [Blank, Green, Red, Yellow, Blue, Orange, Open]
-            const int numOutputClasses = 2;
+            const int numOutputClasses = 1;
 
             // build the model
             string featuresName = "features";
             Variable features   = Variable.InputVariable(new int[] { inputDim }, DataType.Float, featuresName, null, false);
             string labelsName   = "labels";
-            Variable labels     = Variable.InputVariable(new int[] { numOutputClasses }, DataType.Float, labelsName, new List<Axis>() { Axis.DefaultBatchAxis() }, false);
-            var classifierOutput = LSTMSequenceClassifierNet(features, numOutputClasses, embeddingDim, hiddenDim, cellDim, device, "classifierOutput");
+            Variable labels     = Variable.InputVariable(new int[] { numOutputClasses }, DataType.Float, labelsName, new List<Axis>() { Axis.DefaultBatchAxis() }, false, true);
+
+            Function classifierOutput = null;
+            if (useBuiltInRNN)
+            {
+                classifierOutput = LSTMSequenceClassifierNet(features, numOutputClasses, embeddingDim, hiddenDim, cellDim, device, "classifierOutput");
+            }
+            else
+            {
+                Parameter weights = new Parameter(new int[] { NDShape.InferredDimension, NDShape.InferredDimension }, DataType.Float, CNTKLib.GlorotUniformInitializer(CNTKLib.DefaultParamInitScale, CNTKLib.SentinelValueForInferParamInitRank, CNTKLib.SentinelValueForInferParamInitRank, 1));
+                Function rnn = CNTKLib.Tanh(CNTKLib.OptimizedRNNStack(features, weights, 512, 40, true, "lstm"));
+                Function dense = TestHelper.Dense(rnn, 40, device, Activation.ReLU);
+                classifierOutput = TestHelper.Dense(dense, 1, device, Activation.Sigmoid, "classifierOutput");
+            }
+
             //Function trainingLoss = CNTKLib.BinaryCrossEntropy(classifierOutput, labels, "lossFunction");
-            Function trainingLoss = CNTKLib.CrossEntropyWithSoftmax(classifierOutput, labels, "lossFunction");
-            Function prediction = CNTKLib.ClassificationError(classifierOutput, labels,  "classificationError");
+            Function trainingLoss = CNTKLib.BinaryCrossEntropy(classifierOutput, labels, "lossFunction");
+            Function prediction = CNTKLib.SquaredError(classifierOutput, labels,  "classificationError");
 
             // prepare training data
             IList<StreamConfiguration> streamConfigurations = new StreamConfiguration[]
@@ -46,7 +59,7 @@ namespace ConvertHero.CNTKModels
             AdditionalLearningOptions opts = new AdditionalLearningOptions();
             opts.l2RegularizationWeight = 0.001;
             TrainingParameterScheduleDouble learningRatePerSample = new TrainingParameterScheduleDouble(0.0001, minibatchSize);
-            TrainingParameterScheduleDouble momentumTimeConstant = CNTKLib.MomentumAsTimeConstantSchedule(256);
+            TrainingParameterScheduleDouble momentumTimeConstant = CNTKLib.MomentumAsTimeConstantSchedule(CNTKLib.MomentumFromTimeConstant(10.0));
             IList<Learner> parameterLearners = new List<Learner>()
             {
                 Learner.MomentumSGDLearner(classifierOutput.Parameters(), learningRatePerSample, momentumTimeConstant, true, opts)
@@ -55,11 +68,11 @@ namespace ConvertHero.CNTKModels
             Trainer trainer = Trainer.CreateTrainer(classifierOutput, trainingLoss, prediction, parameterLearners);
 
             // train the model
-            int outputFrequencyInMinibatches = 5;
+            int outputFrequencyInMinibatches = 10;
             float[] errorPercentages = new float[outputFrequencyInMinibatches];
             int index = 0;
             int miniBatchCount = 0;
-            int numEpochs = 50;
+            int numEpochs = 100000;
             while (numEpochs > 0)
             {
                 UnorderedMapStreamInformationMinibatchData minibatchData = minibatchSource.GetNextMinibatch(minibatchSize, device);

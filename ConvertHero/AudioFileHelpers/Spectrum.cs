@@ -39,14 +39,8 @@ namespace ConvertHero.AudioFileHelpers
                 fft[i] = signal[i];
             }
 
-            double step = (double)sampleRate / signal.Length;
-            int kickBin = (int)(114 / step);
-            int snareBin = (int)(218 / step);
-
             // compute the FFT
             MathNet.Numerics.IntegralTransforms.Fourier.Forward(fft);
-            fft[kickBin] /= 2;
-            fft[snareBin] /= 2;
             return fft;
         }
     }
