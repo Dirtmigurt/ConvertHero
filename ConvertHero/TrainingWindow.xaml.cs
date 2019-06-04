@@ -81,7 +81,7 @@
         private void TrainModelButton_Click(object sender, RoutedEventArgs e)
         {
             //GetMidiFileLabels(@"E:\clonehero-win64\Songs\Rock Band 3 DLC\Rock Band 3 - DLC\Breaking Benjamin - Sooner or Later\notes.mid", 50);
-            BuildMasterFeaturefile();
+            //BuildMasterFeaturefile();
             // Load the Audio file (features)
             //float[,] features = GetAudioFileFeatures();
 
@@ -92,10 +92,10 @@
             //outputFile = System.IO.Path.ChangeExtension(this.AudioFileName, "Mel.ctf");
             //WriteFeatureLabelFile(outputFile, features, notesbyFrames);
 
-            string featureFile = @"D:\Workspace\CloneHeroOnsetFeatureSetV4.ctf";
+            string featureFile = @"C:\test\Workspace\CloneHeroOnsetFeatureSetV2.ctf";
             //CNTKModels.LSTMSequenceClassifier.ValidateModelFile(@"C:\test\LSTMOnset.model", featureFile, DeviceDescriptor.GPUDevice(0));
-            CNTKModels.LSTMSequenceClassifier.Train(DeviceDescriptor.GPUDevice(0), featureFile, true); 
-            //CNTKModels.ConvolutionalNeuralNetwork.TrainAndEvaluate(DeviceDescriptor.GPUDevice(0), featureFile, true, false);
+            CNTKModels.LSTMSequenceClassifier.Train(DeviceDescriptor.CPUDevice, featureFile, false); 
+            //CNTKModels.ConvolutionalNeuralNetwork.TrainAndEvaluate(DeviceDescriptor.CPUDevice, featureFile, true, true);
             //CNTKModels.RecurrentConvolutionalNeuralNetwork.TrainAndEvaluate(DeviceDescriptor.GPUDevice(0), featureFile, true);
             //CNTKModels.LSTMSequenceClassifier.ValidateModelFile(@"C:\test\Temp\Convolution.model", featureFile, DeviceDescriptor.GPUDevice(0));
             
@@ -105,9 +105,9 @@
         private void BuildMasterFeaturefile()
         {
             //using (StreamWriter multiWriter = new StreamWriter(File.OpenWrite(@"D:\Workspace\CloneHeroMultiFeatureSet.ctf")))
-            using (StreamWriter onsetWriter = new StreamWriter(File.OpenWrite(@"D:\Workspace\CloneHeroOnsetFeatureSetV4.ctf")))
+            using (StreamWriter onsetWriter = new StreamWriter(File.OpenWrite(@"C:\test\Workspace\CloneHeroOnsetFeatureSetV2.ctf")))
             {
-                foreach (string folder in GetLeafDirectories(@"E:\clonehero-win64\Songs\Guitar Hero - Metallica\31 - Seek and Destroy"))
+                foreach (string folder in GetLeafDirectories(@"D:\clonehero-win64\Songs\Anti Hero\Anti Hero\Tier 15 - [FULL ALBUM] Foreign Obejcts - Galactic Prey (2015) (FrOoGle)\09. Direct Contact With the Dead (FrOoGle)"))
                 {
                     try
                     {
@@ -134,15 +134,15 @@
                         }
 
                         int frameRate = 50;
-
-                        // Load the chart file (labels)
-                        float[,] y = string.IsNullOrWhiteSpace(midFile) ? GetChartFileLabels(chartFile, frameRate) : GetMidiFileLabels(midFile, frameRate);
-
                         // look back 1/4 of a second, and ahead 1/4 of a second
                         int window = frameRate / 4;
 
+                        // Load the chart file (labels)
+                        float[,] y = string.IsNullOrWhiteSpace(midFile) ? GetChartFileLabels(chartFile, frameRate) : GetMidiFileLabels(midFile, frameRate);
+                        y = ReshapeFeatureWindow(y, 1);
+
                         // Load the Audio file (features)
-                        float[,] x = GetAudioFileFeatures(audioFiles, frameRate, 1024, window);
+                        float[,] x = GetAudioFileFeatures(audioFiles, frameRate, 1024, 0);
 
                         // Write the song to the output files
                         int featureLength = x.GetLength(1);
@@ -166,31 +166,8 @@
                                 multiFeatureColumns.Add(y[step, l].ToString());
                             }
 
-                            bool onset = false;
-                            int start = Math.Max(0, step - 1);
-                            int end = Math.Min(lines - 1, step + 1);
-                            for(int i = start; i <= end; i++)
-                            {
-                                if (y[i, 0] < 0.5f)
-                                {
-                                    onset = true;
-                                    break;
-                                }
-                            }
-
-                            if(onset)
-                            {
-                                //onsetFeatureColumns.Add("0");
-                                onsetFeatureColumns.Add("1");
-                            }
-                            else
-                            {
-                                //onsetFeatureColumns.Add("1");
-                                onsetFeatureColumns.Add("0");
-                            }
-
                             //multiWriter.WriteLine(string.Join(" ", multiFeatureColumns));
-                            onsetWriter.WriteLine(string.Join(" ", onsetFeatureColumns));
+                            onsetWriter.WriteLine(string.Join(" ", multiFeatureColumns));
                         }
                     }
                     catch(Exception e)
@@ -199,6 +176,32 @@
                     }
                 }
             }
+        }
+
+        private float[,] ReshapeFeatureWindow(float[,] y, int window)
+        {
+            int frames = y.GetLength(0);
+            int featureCount = y.GetLength(1);
+            float[,] fs = new float[frames, 2];
+
+            for (int i = 0; i < frames; i++)
+            {
+                // check if a note is within the window
+                bool onset = false;
+                for (int j = Math.Max(0, i - window); j <= Math.Min(frames - 1, i + window); j++)
+                {
+                    if (y[j, 0] < 0.5f)
+                    {
+                        onset = true;
+                        break;
+                    }
+                }
+
+                fs[i, 0] = onset ? 0 : 1;
+                fs[i, 1] = onset ? 1 : 0;
+            }
+
+            return fs;
         }
 
         private IEnumerable<string> GetLeafDirectories(string root)
@@ -345,6 +348,9 @@
                     // run the triangle filtered bands through superFlux to get a measure of how different this frame is from the previous frame.
                     //superFluxValues.Add(superFlux.Compute(tribands));
                 }
+
+                // compute mean and stdev of melFrames
+
 
                 //NoveltyCurve ncurve = new NoveltyCurve(WeightType.Linear, frameRate, false);
                 //List<float> novelty = ncurve.ComputeAll(melFrames).ToList();

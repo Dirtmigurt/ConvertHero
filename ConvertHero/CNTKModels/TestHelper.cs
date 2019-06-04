@@ -202,13 +202,15 @@ namespace ConvertHero.CNTKModels
         {
             Function model = Function.Load(modelFile, device);
             var imageInput = model.Arguments[0];
-            var labelOutput = model.Outputs.Single(o => o.Name == outputName);
+            var labelOutput = model.Output;
 
             var featureStreamInfo = testMinibatchSource.StreamInfo(featureInputName);
             var labelStreamInfo = testMinibatchSource.StreamInfo(labelInputName);
 
             int batchSize = 50;
             int miscountTotal = 0, totalCount = 0;
+            int missTotal = 0, fpTotal = 0;
+            int predictedOnsetTotal = 0, actualOnsetTotal = 0;
             while (true)
             {
                 var minibatchData = testMinibatchSource.GetNextMinibatch((uint)batchSize, device);
@@ -230,19 +232,22 @@ namespace ConvertHero.CNTKModels
 
                 model.Evaluate(inputDataMap, outputDataMap, device);
                 var outputData = outputDataMap[labelOutput].GetDenseData<float>(labelOutput);
-                var actualLabels = outputData.Select(l => l.IndexOf(l.Max())).ToList();
-                if (actualLabels.Contains(1) || expectedLabels.Contains(1))
-                {
-                    ;
-                }
+                var predictedLabels = outputData.Select(l => l.IndexOf(l.Max())).ToList();
 
-                int misMatches = actualLabels.Zip(expectedLabels, (a, b) => a.Equals(b) ? 0 : 1).Sum();
+                int onsetMisses = expectedLabels.Zip(predictedLabels, (a, b) => a > b ? 1 : 0).Sum();
+                int onsetFP = expectedLabels.Zip(predictedLabels, (a, b) => b > a ? 1 : 0).Sum();
+                missTotal += onsetMisses;
+                fpTotal += onsetFP;
 
-                miscountTotal += misMatches;
-                Console.WriteLine($"Validating Model: Total Samples = {totalCount}, Misclassify Count = {miscountTotal}");
+                predictedOnsetTotal += predictedLabels.Sum();
+                actualOnsetTotal += expectedLabels.Sum();
+
+                Console.WriteLine($"Validating Model: Total Onsets: {actualOnsetTotal},  Predicted Onsets: {predictedOnsetTotal},  Onset Misses: {missTotal},  Onset False Positives: {fpTotal}");
 
                 if (totalCount > maxCount)
+                {
                     break;
+                }
             }
 
             float errorRate = 1.0F * miscountTotal / totalCount;

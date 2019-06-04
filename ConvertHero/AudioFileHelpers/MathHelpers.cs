@@ -1,4 +1,5 @@
-﻿using MathNet.Numerics;
+﻿using CNTK;
+using MathNet.Numerics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -85,10 +86,70 @@ namespace ConvertHero.AudioFileHelpers
 
                 preNorm = Math.Min(0, preNorm + gain);
                 preNorm = Math.Max(-range, preNorm);
-                result[i] = (preNorm / range) + 1;
+                result[i] = ((preNorm + range) / range);
             }
 
+            double m, b;
+            double err = FindLinearLeastSquaresFit(result, out m, out b);
+            ApplyLinearNormalization(result, m, b);
             return result;
+        }
+
+        private static void ApplyLinearNormalization(float[] points, double m, double b)
+        {
+            double line = b;
+            int i = 0;
+            while(line > 0 && i < points.Length - 1)
+            {
+                line = i * m + b;
+
+                i++;
+                points[i] = (float)(points[i] - line);
+            }
+        }
+
+        // Find the least squares linear fit.
+        // Return the total error.
+        public static double FindLinearLeastSquaresFit(float[] points, out double m, out double b)
+        {
+            // Perform the calculation.
+            // Find the values S1, Sx, Sy, Sxx, and Sxy.
+            double S1 = points.Length;
+            double Sx = 0;
+            double Sy = 0;
+            double Sxx = 0;
+            double Sxy = 0;
+
+            int x = 0;
+            foreach (float f in points)
+            {
+                Sx += x;
+                Sy += f;
+                Sxx += x * x;
+                Sxy += x * f;
+                x++;
+            }
+
+            // Solve for m and b.
+            m = (Sxy * S1 - Sx * Sy) / (Sxx * S1 - Sx * Sx);
+            b = (Sxy * Sx - Sy * Sxx) / (Sx * Sx - S1 * Sxx);
+
+            return Math.Sqrt(ErrorSquared(points, m, b));
+        }
+
+        // Return the error squared.
+        public static double ErrorSquared(float[] points, double m, double b)
+        {
+            double total = 0;
+            int x = 0;
+            foreach (float f in points)
+            {
+                double dy = f - (m * x + b);
+                total += dy * dy;
+                x++;
+            }
+
+            return total;
         }
 
         public static float AmplitudeToDecibel(float f)
@@ -119,6 +180,31 @@ namespace ConvertHero.AudioFileHelpers
             }
 
             return output;
+        }
+
+        public static Function MeanAbsoluteError(Variable prediction, Variable targets)
+        {
+            var absolute = CNTKLib.Abs(CNTKLib.Minus(targets, prediction));
+
+            return CNTKLib.ReduceMean(absolute, new Axis(-1));
+        }
+
+        public static Function MeanAbsolutePercentageError(Variable prediction, Variable targets)
+        {
+            var absolute = CNTKLib.Abs(CNTKLib.Minus(targets, prediction));
+            var absolutePercentage = CNTKLib.ElementDivide(absolute, targets);
+            return CNTKLib.ReduceMean(absolutePercentage, new Axis(-1));
+        }
+
+        public static Function CustomError(Variable prediction, Variable targets, string name = null)
+        {
+            // predicting a 0 where a 1 should be is VERY bad
+            var maxPrediction = CNTKLib.Pooling(prediction, PoolingType.Max, new int[] { 3 }, new int[] { 1 });
+
+            // predicting a 1 where a 0 should be is bad
+            var maxTargets = CNTKLib.Pooling(targets, PoolingType.Max, new int[] { 3 }, new int[] { 1 });
+
+            return CNTKLib.ReduceSum(CNTKLib.Abs(CNTKLib.Minus(maxPrediction, maxTargets)), new Axis(-1), name);
         }
     }
 }

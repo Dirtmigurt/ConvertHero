@@ -836,8 +836,9 @@
             //Variable input = CNTKLib.InputVariable(imageDim, DataType.Float, "features");
             //RecurrentConvolutionalNeuralNetwork.RecurrentCNN(input, DeviceDescriptor.GPUDevice(0), imageDim);
             float[] a = new float[] { 1, 0, 0, 0, 0 };
-            float[] b = new float[] { 0, 0, 0, 0, 1 };
-            float[] res = RunCNTKFunction(CNTKLib.BinaryCrossEntropy, a, b);
+            float[] b = new float[] { 1, 0, 1, 0, 0 };
+            //CNTKLib.EditDistanceError()
+            float[] res = RunCNTKFunction(CNTKLib.CosineDistance, b, a);
             ;
         }
 
@@ -853,6 +854,7 @@
             Variable output = func.Output;
             Dictionary<Variable, Value> outputDictionary = new Dictionary<Variable, Value> { { output, null } };
             func.Evaluate(new Dictionary<Variable, Value> { { aVar, aVal }, { bVar, bVal } }, outputDictionary, DeviceDescriptor.CPUDevice);
+            var x = outputDictionary[output].GetDenseData<float>(output);
             return outputDictionary[output].GetDenseData<float>(output).First().ToArray();
         }
 
