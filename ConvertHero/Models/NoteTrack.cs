@@ -377,21 +377,24 @@
             {
                 // Kill the sustains
                 ev.Sustain = 0;
-                int n = PossibleNotes[(GeneralMidiPercussion)ev.Type].Count;
-                switch(n)
+                if (PossibleNotes.ContainsKey((GeneralMidiPercussion)ev.Type))
                 {
-                    case 1:
-                        kickEvents.Add(ev);
-                        break;
-                    case 2:
-                        cymbalEvents.Add(ev);
-                        break;
-                    case 3:
-                        padEvents.Add(ev);
-                        break;
-                    default:
-                        miscEvents.Add(ev);
-                        break;
+                    int n = PossibleNotes[(GeneralMidiPercussion)ev.Type].Count;
+                    switch (n)
+                    {
+                        case 1:
+                            kickEvents.Add(ev);
+                            break;
+                        case 2:
+                            cymbalEvents.Add(ev);
+                            break;
+                        case 3:
+                            padEvents.Add(ev);
+                            break;
+                        default:
+                            miscEvents.Add(ev);
+                            break;
+                    }
                 }
             }
 

@@ -104,8 +104,12 @@
             ChartResolution = x.TicksPerQuarterNote;
             SyncTrack = LoadSyncEvents(midiFile);
             ObservableCollection<NoteTrack> trackList = LoadNoteEvents(midiFile);
+
+            // Lead and bass tracks support all possible note types
             LeadTrackListView.ItemsSource = trackList;
             BassTrackListView.ItemsSource = new ObservableCollection<NoteTrack>(trackList);
+
+            // Drum track notes must map to dictionary
             DrumTrackListView.ItemsSource = new ObservableCollection<NoteTrack>(trackList);
             return;
         }
