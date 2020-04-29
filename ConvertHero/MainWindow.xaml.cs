@@ -55,8 +55,11 @@
         /// </param>
         private void BtnOpenMidi_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog fileDialog = new OpenFileDialog();
-            fileDialog.Filter = "Midi|*.mid";
+            OpenFileDialog fileDialog = new OpenFileDialog
+            {
+                Filter = "Midi|*.mid"
+            };
+
             DialogResult result = fileDialog.ShowDialog();
             switch (result)
             {
@@ -454,7 +457,7 @@
 
                     if (leadTracks.Count > 0)
                     {
-                        NoteTrack lead = MergeManyTracks(leadTracks);
+                        NoteTrack lead = MergeManyTracks(leadTracks, CloneHeroInstrument.Single);
                         lead.CloneHeroInstrument = CloneHeroInstrument.Single.ToString();
 
                         // Write Note section
@@ -470,7 +473,7 @@
 
                     if (bassTracks.Count > 0)
                     {
-                        NoteTrack bass = MergeManyTracks(bassTracks);
+                        NoteTrack bass = MergeManyTracks(bassTracks, CloneHeroInstrument.DoubleBass);
                         bass.CloneHeroInstrument = CloneHeroInstrument.DoubleBass.ToString();
 
                         // Write Note section
@@ -486,7 +489,7 @@
 
                     if (drumTracks.Count > 0)
                     {
-                        NoteTrack drum = MergeManyTracks(drumTracks, true);
+                        NoteTrack drum = MergeManyTracks(drumTracks, CloneHeroInstrument.Drums);
                         drum.CloneHeroInstrument = CloneHeroInstrument.Drums.ToString();
 
                         // Write Note section
@@ -519,7 +522,7 @@
         /// <returns>
         /// The single output track.
         /// </returns>
-        private NoteTrack MergeManyTracks(List<NoteTrack> tracks, bool isDrum=false)
+        private NoteTrack MergeManyTracks(List<NoteTrack> tracks, CloneHeroInstrument instrument)
         {
             if (tracks == null || tracks.Count == 0)
             {
@@ -541,16 +544,21 @@
                 }
             }
 
-            // Reshape the note track to event types 0-5
-            if (isDrum)
+            // Map notes onto guitar hero highway system depending on the type of instrument it is (guitar/bass/drums).
+            switch(instrument)
             {
-                // Shape the notes as if they are going to be played on 
-                merged.DrumReshape();
-            }
-            else
-            {
-                merged.GuitarReshape();
-                //merged.ExperimentalGuitarReshape(SyncTrack, ChartResolution);
+                case CloneHeroInstrument.Single:
+                    merged.GuitarReshape();
+                    break;
+                case CloneHeroInstrument.DoubleBass:
+                    merged.BassGuitarReshape();
+                    break;
+                case CloneHeroInstrument.Drums:
+                    merged.DrumReshape();
+                    break;
+                default:
+                    merged.GuitarReshape();
+                    break;
             }
 
             return merged;

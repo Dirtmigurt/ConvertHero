@@ -98,7 +98,7 @@
         /// Each event has a tone from 0 -> 127. These must be mapped down to 0->4 such that
         /// the overall structure of the song remains unchanged.
         /// 
-        /// Note that this is impossible to do perfectly as representing tones [0,1,2,3,4,5] must wrap around somewhere
+        /// Note that this is impossible to do perfectly as representing tones [0,1,2,3,4] must wrap around somewhere
         /// and there is no absolutely correct way to do this.
         /// 
         /// This method deploys lots of heuristics that can fail in certain situations and produce notes that are jarring 
@@ -113,13 +113,58 @@
             List<int> notes = LocalNormalization(this.Notes);
 
             // MAP all notes down to 0-4
-            RiseAndFallMapper(this.Notes);
+            RiseAndFallMapper(this.Notes, 5);
 
             // Build the chords back out since they were stripped into single notes
             RebuildChords();
 
             // Fix sustains, since midi files sustain ALL notes
             FixSustains();
+        }
+
+        /// <summary>
+        /// Each event has a tone from 0 -> 127. These must be mapped down to 0->5 such that
+        /// the overall structure of the song remains unchanged.
+        /// 
+        /// Note that this is impossible to do perfectly as representing tones [0,1,2,3,4,5] must wrap around somewhere
+        /// and there is no absolutely correct way to do this.
+        /// 
+        /// This method deploys lots of heuristics that can fail in certain situations and produce notes that are jarring 
+        /// or inconsistent with the tones being played.
+        /// </summary>
+        public void BassGuitarReshape()
+        {
+            // Break chords into a single note, keeping the number of fingers to use and the Tone span
+            BreakChords();
+
+            // Normalize as many note transitions as possible down to single steps
+            List<int> notes = LocalNormalization(this.Notes);
+
+            // MAP all notes down to 0-5
+            RiseAndFallMapper(this.Notes, 6);
+
+            // Handle open note replacements
+            Change6NotesTo5WithOpen(this.Notes);
+
+            // Build the chords back out since they were stripped into single notes
+            RebuildChords();
+
+            // Fix sustains, since midi files sustain ALL notes
+            FixSustains();
+        }
+
+        /// <summary>
+        /// Change the track that uses 6 unique notes to the way clone hero denotes open notes (7).
+        /// This just shifts all not values down 1 value so 6 becomes 5, 5 becomes 4, and 0 becomes -1.
+        /// 0-5 are valid values for Green/Red/Yellow/Blue/Orange, so we need to change -1 to the value for an open note (7);
+        /// </summary>
+        /// <param name="notes"></param>
+        private void Change6NotesTo5WithOpen(List<ChartEvent> notes)
+        {
+            foreach(ChartEvent note in notes)
+            {
+                note.Type = note.Type == 0 ? 7 : note.Type - 1;
+            }
         }
 
         /// <summary>
@@ -132,7 +177,7 @@
         /// </summary>
         /// <param name="notes">
         /// </param>
-        private void RiseAndFallMapper(List<ChartEvent> notes)
+        private void RiseAndFallMapper(List<ChartEvent> notes, int outputTones = 5)
         {
             // Remove duplicate notes
             int prev = -1;
@@ -207,7 +252,7 @@
             }
 
             List<int> runMaxes = runs.Select(l => l.Max() + l.Min() / 2).ToList();
-            runMaxes = NoteReduceMapping(runMaxes);
+            runMaxes = NoteReduceMapping(runMaxes, outputTones);
             for(int i = 0; i < runMaxes.Count; i++)
             {
                 // Break the run up
@@ -599,10 +644,9 @@
         /// <returns>
         /// The list of mapped notes containing only values 0->4
         /// </returns>
-        private List<int> NoteReduceMapping(List<int> ogNotes)
+        private List<int> NoteReduceMapping(List<int> ogNotes, int window = 5)
         {
             List<int> rawMapping = new List<int>();
-            int window = 5;
             for (int i = 0; i < ogNotes.Count; i++)
             {
                 HashSet<int> localNotes = new HashSet<int> { ogNotes[i] };
@@ -966,25 +1010,25 @@
         /// List of potential clone hero notes that can be used for a drum type.
         /// In this case only the kick (open note) can be used for kick events.
         /// </summary>
-        private static List<DrumType> Kick = new List<DrumType> { DrumType.Kick };
+        private static readonly List<DrumType> Kick = new List<DrumType> { DrumType.Kick };
 
         /// <summary>
         /// List of potential clone hero notes that can be used for a drum type.
         /// In this case the Red/Blue/Green notes can be used for pad events.
         /// </summary>
-        private static List<DrumType> Pads = new List<DrumType> { DrumType.Red, DrumType.Blue, DrumType.Green };
+        private static readonly List<DrumType> Pads = new List<DrumType> { DrumType.Red, DrumType.Blue, DrumType.Green };
 
         /// <summary>
         /// List of potential clone hero notes that can be used for a drum type.
         /// In this case the Yellow/Orange notes can be used for cymbal events.
         /// </summary>
-        private static List<DrumType> Cymbals = new List<DrumType> { DrumType.Yellow, DrumType.Orange };
+        private static readonly List<DrumType> Cymbals = new List<DrumType> { DrumType.Yellow, DrumType.Orange };
 
         /// <summary>
         /// List of potential clone hero notes that can be used for a drum type.
         /// In this case the Red/Blue/Green/Yellow/Orange notes can be used for miscellaneous events.
         /// </summary>
-        private static List<DrumType> NonKicks = new List<DrumType> { DrumType.Red, DrumType.Yellow, DrumType.Blue, DrumType.Orange, DrumType.Green };
+        private static readonly List<DrumType> NonKicks = new List<DrumType> { DrumType.Red, DrumType.Yellow, DrumType.Blue, DrumType.Orange, DrumType.Green };
 
         /// <summary>
         /// These are the supported Midi drum event types and which clone hero notes they can potentially be represented as.

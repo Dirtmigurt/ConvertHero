@@ -87,20 +87,17 @@
                 return false;
             }
 
-            int tick;
-            if (!int.TryParse(tokens[0], out tick))
+            if (!int.TryParse(tokens[0], out int tick))
             {
                 return false;
             }
 
-            int type;
-            if (!int.TryParse(tokens[3], out type))
+            if (!int.TryParse(tokens[3], out int type))
             {
                 return false;
             }
 
-            int sustain;
-            if (!int.TryParse(tokens[4], out sustain))
+            if (!int.TryParse(tokens[4], out int sustain))
             {
                 return false;
             }
