@@ -81,7 +81,7 @@
         private void TrainModelButton_Click(object sender, RoutedEventArgs e)
         {
             //GetMidiFileLabels(@"E:\clonehero-win64\Songs\Rock Band 3 DLC\Rock Band 3 - DLC\Breaking Benjamin - Sooner or Later\notes.mid", 50);
-            //BuildMasterFeaturefile();
+            BuildMasterFeaturefile();
             // Load the Audio file (features)
             //float[,] features = GetAudioFileFeatures();
 
@@ -105,9 +105,9 @@
         private void BuildMasterFeaturefile()
         {
             //using (StreamWriter multiWriter = new StreamWriter(File.OpenWrite(@"D:\Workspace\CloneHeroMultiFeatureSet.ctf")))
-            using (StreamWriter onsetWriter = new StreamWriter(File.OpenWrite(@"C:\test\Workspace\CloneHeroOnsetFeatureSetV2.ctf")))
+            using (StreamWriter onsetWriter = new StreamWriter(File.OpenWrite(@"D:\Workspace\CloneHeroOnsetFeatureSetV2.ctf")))
             {
-                foreach (string folder in GetLeafDirectories(@"D:\clonehero-win64\Songs\Anti Hero\Anti Hero\Tier 15 - [FULL ALBUM] Foreign Obejcts - Galactic Prey (2015) (FrOoGle)\09. Direct Contact With the Dead (FrOoGle)"))
+                foreach (string folder in GetLeafDirectories(@"E:\clonehero-win64\Songs\Anti Hero\Anti Hero\Tier 15 - [FULL ALBUM] Foreign Obejcts - Galactic Prey (2015) (FrOoGle)\09. Direct Contact With the Dead (FrOoGle)"))
                 {
                     try
                     {
@@ -322,7 +322,11 @@
                 float[] buffer;
                 Windowing hannWindow = new Windowing(WindowingType.Hann);
                 MelBands melBands = new MelBands(40, mfSampleReader.SampleRate, log:true);
+                SimpleOnsetDetectors onsets = new SimpleOnsetDetectors(mfSampleReader.SampleRate);
                 List<float[]> melFrames = new List<float[]>();
+                List<float> hfcValues = new List<float>();
+                List<float> fluxValues = new List<float>();
+                List<float> spectralCentroid = new List<float>();
                 while (mfSampleReader.Read(out buffer) > 0)
                 {
                     // run buffer through Hann windowing
@@ -330,13 +334,16 @@
 
                     // calculate the frequency magnitues of the hann window
                     //(float[] mag, float[] phase) = CartesianToPolar.ConvertComplexToPolar(Spectrum.ComputeFFT(buffer, mfSampleReader.SampleRate));
-                    float[] decibels = MathHelpers.ComputeBinMagnitudes(Spectrum.ComputeFFT(buffer, mfSampleReader.SampleRate), maxBins: 100);
+                    (MathNet.Numerics.Complex32[] fft, float[] magnitude) = Spectrum.ComputeFFTWithMagnitude(buffer, mfSampleReader.SampleRate);
+
+                    // Should not return negatives, this messes lots of stuff up
+                    float[] decibels = MathHelpers.ComputeBinMagnitudes(fft);
                     melFrames.Add(decibels);
                     // Calculate the simple onset detection functions
-                    //hfcValues.Add(onsets.ComputeHFC(mag));
+                    hfcValues.Add(onsets.ComputeHFC(decibels));
                     //complexValues.Add(onsets.ComputeComplex(mag, phase));
                     //complexPhaseValues.Add(onsets.ComputeComplexPhase(mag, phase));
-                    //fluxValues.Add(onsets.ComputeFlux(mag));
+                    fluxValues.Add(onsets.ComputeFlux(decibels));
                     //melFluxValues.Add(onsets.ComputeMelFlux(mag));
                     //rmsValues.Add(onsets.ComputeRms(mag));
                     //melFrames.Add(melBands.Compute(mag));

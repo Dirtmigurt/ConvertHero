@@ -46,7 +46,7 @@ namespace ConvertHero.AudioFileHelpers
         public SimpleOnsetDetectors(int sampleRate)
         {
             this.hfc = new HighFrequencyContent(HFCTechnique.Brossier, sampleRate);
-            this.melBands = new MelBands(40, sampleRate);
+            this.melBands = new MelBands(72, sampleRate, lowFrequencyBound:55, highFrequencyBound:3520);
             this.flux = new Flux(FluxNormalizationMethod.L1, false);
             this.melFlux = new Flux(FluxNormalizationMethod.L1, true);
         }

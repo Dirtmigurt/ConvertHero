@@ -103,8 +103,8 @@ namespace ConvertHero.AudioFileHelpers
             {
                 line = i * m + b;
 
+                points[i] = Math.Max((float)(points[i] - line), 0);
                 i++;
-                points[i] = (float)(points[i] - line);
             }
         }
 

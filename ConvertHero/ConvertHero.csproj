@@ -142,6 +142,7 @@
     <Compile Include="AudioFileHelpers\SampleReader.cs" />
     <Compile Include="AudioFileHelpers\SignalProcessing.cs" />
     <Compile Include="AudioFileHelpers\SimpleOnsetDetectors.cs" />
+    <Compile Include="AudioFileHelpers\SpectralCentroid.cs" />
     <Compile Include="AudioFileHelpers\Spectrum.cs" />
     <Compile Include="AudioFileHelpers\SuperFlux.cs" />
     <Compile Include="AudioFileHelpers\TriangularBands.cs" />

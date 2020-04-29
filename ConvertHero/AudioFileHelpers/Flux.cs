@@ -15,6 +15,8 @@ namespace ConvertHero.AudioFileHelpers
     public class Flux
     {
         private FluxNormalizationMethod normalizeMethod;
+
+        // HalfRectify == true means only frequency magnitudes that increase (onset) contribute to the spectral flux instead of magnitudes that decrese (offsets)
         private bool halfRectify;
         private float[] previousSpectrum = null;
 

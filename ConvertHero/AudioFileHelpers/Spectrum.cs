@@ -31,6 +31,27 @@ namespace ConvertHero.AudioFileHelpers
             return magnitudeSpectrum;
         }
 
+        public static (Complex32[], float[]) ComputeFFTWithMagnitude(float[] signal, int sampleRate = 44100)
+        {
+            Complex32[] fft = new Complex32[signal.Length];
+            for (int i = 0; i < signal.Length; i++)
+            {
+                fft[i] = signal[i];
+            }
+
+            // compute the FFT
+            MathNet.Numerics.IntegralTransforms.Fourier.Forward(fft);
+
+            // Take the magnitude of the FFT
+            float[] magnitudeSpectrum = new float[(fft.Length / 2) + 1];
+            for (int i = 0; i < magnitudeSpectrum.Length; i++)
+            {
+                magnitudeSpectrum[i] = fft[i].Magnitude;
+            }
+
+            return (fft, magnitudeSpectrum);
+        }
+
         public static Complex32[] ComputeFFT(float[] signal, int sampleRate = 44100)
         {
             Complex32[] fft = new Complex32[signal.Length];
@@ -41,6 +62,7 @@ namespace ConvertHero.AudioFileHelpers
 
             // compute the FFT
             MathNet.Numerics.IntegralTransforms.Fourier.Forward(fft);
+
             return fft;
         }
     }
