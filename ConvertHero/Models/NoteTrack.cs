@@ -256,7 +256,7 @@
             for(int i = 0; i < runMaxes.Count; i++)
             {
                 // Break the run up
-                runs[i] = BreakRun(runs[i], runMaxes[i]);
+                runs[i] = BreakRun(runs[i], runMaxes[i], outputTones);
             }
 
             // Adjust each run up/down to prevent runs from having the same first/last note
@@ -324,7 +324,7 @@
         /// <returns>
         /// The changed run.
         /// </returns>
-        public List<int> BreakRun(List<int> run, int anchor)
+        public List<int> BreakRun(List<int> run, int anchor, int boardWidth)
         {
             int runLength = run.Count;
             bool repeat = true;
@@ -332,7 +332,7 @@
             while (repeat)
             {
                 repeat = false;
-                if (runLength < 6)
+                if (runLength <= boardWidth)
                 {
                     for (int j = 0; j < runLength; j++)
                     {
@@ -341,10 +341,11 @@
                 }
                 else if (runLength % 3 == 0)
                 {
+                    int n = boardWidth - 3 + 1;
                     // 0,1,2 | 1,2,3 | 2,3,4
                     for (int j = 0; j < runLength; j++)
                     {
-                        newNotes.Add((j % 3) + ((j / 3) % 3));
+                        newNotes.Add((j % 3) + ((j / 3) % n));
                     }
                 }
                 else if (runLength % 7 == 0)
@@ -357,13 +358,14 @@
                 }
                 else if (runLength % 8 == 0)
                 {
+                    int n = boardWidth - 4 + 1;
                     // 0,1,2,3 | 1,2,3,4
                     for (int j = 0; j < runLength; j++)
                     {
-                        newNotes.Add((j % 4) + ((j / 4) % 2));
+                        newNotes.Add((j % 4) + ((j / 4) % n));
                     }
                 }
-                else if (runLength % 10 == 0)
+                else if (runLength % boardWidth == 0)
                 {
                     // 0-4 as many times as needed
                     for (int j = 0; j < runLength; j++)
@@ -374,11 +376,11 @@
                 else
                 {
                     // put an green-> orange run in and see if any of the above patterns will fit.
-                    for (int j = 0; j < 5; j++)
+                    for (int j = 0; j < boardWidth; j++)
                     {
                         newNotes.Add(j);
                     }
-                    runLength -= 5;
+                    runLength -= boardWidth;
                     repeat = true;
                 }
             }
@@ -397,7 +399,7 @@
             int max = newNotes.Max();
             min = newNotes.Min();
 
-            int bump = Math.Min(4 - max, anchor);
+            int bump = Math.Min(boardWidth - 1 - max, anchor);
             newNotes = newNotes.Select(n => n + bump).ToList();
             return newNotes;
         }
