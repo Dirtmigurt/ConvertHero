@@ -251,7 +251,7 @@
                 }
             }
 
-            List<int> runMaxes = runs.Select(l => l.Max() + l.Min() / 2).ToList();
+            List<int> runMaxes = runs.Select(l => (l.Max() + l.Min()) / 2).ToList();
             runMaxes = NoteReduceMapping(runMaxes, outputTones);
             for(int i = 0; i < runMaxes.Count; i++)
             {
@@ -351,9 +351,12 @@
                 else if (runLength % 7 == 0)
                 {
                     // 0,1,2,3 | 2,3,4
-                    for (int j = 0; j < runLength; j++)
+                    for (int k = runLength; k > 0; k -= 7)
                     {
-                        newNotes.Add((j % 4) + (2 * ((j / 4) % 2)));
+                        for (int j = 0; j < 7; j++)
+                        {
+                            newNotes.Add((j % 4) + (2 * ((j / 4) % 2)));
+                        }
                     }
                 }
                 else if (runLength % 8 == 0)
@@ -733,12 +736,12 @@
                 var map = BuildChordMap(deg, width);
 
                 // for each note in measure, apply mapping
-                foreach(ChartEvent ev in measure)
+                foreach (ChartEvent ev in measure)
                 {
                     List<int> chord = map[ev.Type];
                     // Delete ev from this.Notes
                     this.Notes.Remove(ev);
-                    foreach(int note in chord)
+                    foreach (int note in chord)
                     {
                         this.Notes.Add(new ChartEvent(ev.Tick, note, ev.Sustain));
                     }
