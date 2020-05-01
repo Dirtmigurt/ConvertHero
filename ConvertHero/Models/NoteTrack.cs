@@ -373,7 +373,7 @@
                     // 0-4 as many times as needed
                     for (int j = 0; j < runLength; j++)
                     {
-                        newNotes.Add((j % 5));
+                        newNotes.Add((j % boardWidth));
                     }
                 }
                 else
@@ -403,6 +403,10 @@
             min = newNotes.Min();
 
             int bump = Math.Min(boardWidth - 1 - max, anchor);
+            if (bump < 0)
+            {
+                ;
+            }
             newNotes = newNotes.Select(n => n + bump).ToList();
             return newNotes;
         }
@@ -738,12 +742,15 @@
                 // for each note in measure, apply mapping
                 foreach (ChartEvent ev in measure)
                 {
-                    List<int> chord = map[ev.Type];
-                    // Delete ev from this.Notes
-                    this.Notes.Remove(ev);
-                    foreach (int note in chord)
+                    if (map.ContainsKey(ev.Type))
                     {
-                        this.Notes.Add(new ChartEvent(ev.Tick, note, ev.Sustain));
+                        List<int> chord = map[ev.Type];
+                        // Delete ev from this.Notes
+                        this.Notes.Remove(ev);
+                        foreach (int note in chord)
+                        {
+                            this.Notes.Add(new ChartEvent(ev.Tick, note, ev.Sustain));
+                        }
                     }
                 }
             }
