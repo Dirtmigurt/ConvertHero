@@ -33,6 +33,11 @@
         public int ToneSpan = 0;
 
         /// <summary>
+        /// This indicates whether or not the note is played on the cymals on a drum track.
+        /// </summary>
+        public bool IsCymbal = false;
+
+        /// <summary>
         /// Constructor for the ChartEvent class.
         /// </summary>
         /// <param name="tick">
@@ -114,7 +119,13 @@
         /// </returns>
         public override string ToString()
         {
-            return $"  {this.Tick} = N {this.Type} {this.Sustain}";
+            string strRepresentation = $"  {this.Tick} = N {this.Type} {this.Sustain}";
+            if (this.IsCymbal)
+            {
+                strRepresentation += $"\n  {this.Tick} = N {64 + this.Type} {this.Sustain}";
+            }
+
+            return strRepresentation;
         }
     }
 
@@ -140,11 +151,12 @@
     public enum DrumType
     {
         Kick,
-        Red,
-        Yellow,
-        Blue,
-        Orange,
-        Green
+        Snare,
+        HiHat,
+        Crash,
+        Ride,
+        Tom,
+        Misc
     }
 
     /// <summary>

@@ -415,7 +415,7 @@
         /// Each event has a tone from 35 -> 81. These must be mapped down to 0->4 such that
         /// the overall structure of the song remains unchanged.
         /// 
-        /// Note that this is impossible to do perfectly as there are only 2 cymbals and 3 snare/toms on the highway.
+        /// Note that this is impossible to do perfectly as there are only 3 cymbals and 4 snare/toms on the highway.
         /// 
         /// This method deploys lots of heuristics that can fail in certain situations and produce notes that are jarring 
         /// or inconsistent with the tones being played.
@@ -424,45 +424,93 @@
         {
             //split notes into 3 tracks, kick/cymbal/pad
             List<ChartEvent> kickEvents = new List<ChartEvent>();
-            List<ChartEvent> cymbalEvents = new List<ChartEvent>();
-            List<ChartEvent> padEvents = new List<ChartEvent>();
-            List<ChartEvent> miscEvents = new List<ChartEvent>();
-            foreach(ChartEvent ev in this.Notes)
+            List<ChartEvent> snareEvents = new List<ChartEvent>();
+            List<ChartEvent> hiHatEvents = new List<ChartEvent>();
+            List<ChartEvent> crashEvents = new List<ChartEvent>();
+            List<ChartEvent> rideEvents = new List<ChartEvent>();
+            List<ChartEvent> tomEvents = new List<ChartEvent>();
+
+            foreach (ChartEvent ev in this.Notes)
             {
                 // Kill the sustains
                 ev.Sustain = 0;
-                if (PossibleNotes.ContainsKey((GeneralMidiPercussion)ev.Type))
+                // put the event into the correct bucket kick/snare/tom/cymbal
+                if (DrumEventTypeMapping.TryGetValue((GeneralMidiPercussion)ev.Type, out DrumType type))
                 {
-                    int n = PossibleNotes[(GeneralMidiPercussion)ev.Type].Count;
-                    switch (n)
+                    switch (type)
                     {
-                        case 1:
+                        case DrumType.Kick:
+                            ev.Type = 0;
                             kickEvents.Add(ev);
                             break;
-                        case 2:
-                            cymbalEvents.Add(ev);
+                        case DrumType.Snare:
+                            ev.Type = 1;
+                            snareEvents.Add(ev);
                             break;
-                        case 3:
-                            padEvents.Add(ev);
+                        case DrumType.HiHat:
+                            ev.Type = 2;
+                            ev.IsCymbal = true;
+                            hiHatEvents.Add(ev);
+                            break;
+                        case DrumType.Crash:
+                            ev.Type = 3;
+                            ev.IsCymbal = true;
+                            crashEvents.Add(ev);
+                            break;
+                        case DrumType.Ride:
+                            ev.Type = 4;
+                            ev.IsCymbal = true;
+                            rideEvents.Add(ev);
+                            break;
+                        case DrumType.Tom:
+                            tomEvents.Add(ev);
                             break;
                         default:
-                            miscEvents.Add(ev);
                             break;
                     }
                 }
             }
 
-            // MAP KICKS
-            foreach(ChartEvent ev in kickEvents)
+            // Convert the midi identifiers to tonal identifiers where 0 is the highest pitch tom and 11 is the lowest pitch tom.
+            foreach (ChartEvent tomEvent in tomEvents)
             {
-                ev.Type = (int)DrumType.Kick;
+                tomEvent.Type = TomPitchOrdering[(GeneralMidiPercussion)tomEvent.Type];
             }
 
-            // MAP CYMBALS (2 notes)
-            MapDrumNotes(cymbalEvents, Cymbals);
+            // Reduce the tom notes down from 12 potential tones to 3
+            RiseAndFallMapper(tomEvents, 3);
 
-            // MAP PADS
-            MapDrumNotes(padEvents, Pads);
+            // Build a dictionary that allows the lookup of cymbal events by the tick it occurrs on.
+            List<ChartEvent> cymbalEvents = new List<ChartEvent>(hiHatEvents);
+            cymbalEvents.AddRange(crashEvents);
+            cymbalEvents.AddRange(rideEvents);
+            Dictionary<long, List<ChartEvent>> cymbalTrack = new Dictionary<long, List<ChartEvent>>();
+            foreach (ChartEvent ev in cymbalEvents)
+            {
+                if (cymbalTrack.ContainsKey(ev.Tick))
+                {
+                    cymbalTrack[ev.Tick].Add(ev);
+                }
+                else
+                {
+                    cymbalTrack[ev.Tick] = new List<ChartEvent> { ev };
+                }
+            }
+
+
+            foreach(ChartEvent tomEvent in tomEvents)
+            {
+                if (cymbalTrack.ContainsKey(tomEvent.Tick))
+                {
+                    // Force the note to be played on the snare since it overlaps with the cymbal.
+                    // Ideally the game would allow this *cough* phase shift 7 lane *cough*
+                    tomEvent.Type = 1;
+                }
+                else
+                {
+                    tomEvent.Type += 2;
+                }
+            }
         }
 
         /// <summary>
@@ -1019,81 +1067,77 @@
         }
 
         /// <summary>
-        /// List of potential clone hero notes that can be used for a drum type.
-        /// In this case only the kick (open note) can be used for kick events.
-        /// </summary>
-        private static readonly List<DrumType> Kick = new List<DrumType> { DrumType.Kick };
-
-        /// <summary>
-        /// List of potential clone hero notes that can be used for a drum type.
-        /// In this case the Red/Blue/Green notes can be used for pad events.
-        /// </summary>
-        private static readonly List<DrumType> Pads = new List<DrumType> { DrumType.Red, DrumType.Blue, DrumType.Green };
-
-        /// <summary>
-        /// List of potential clone hero notes that can be used for a drum type.
-        /// In this case the Yellow/Orange notes can be used for cymbal events.
-        /// </summary>
-        private static readonly List<DrumType> Cymbals = new List<DrumType> { DrumType.Yellow, DrumType.Orange };
-
-        /// <summary>
-        /// List of potential clone hero notes that can be used for a drum type.
-        /// In this case the Red/Blue/Green/Yellow/Orange notes can be used for miscellaneous events.
-        /// </summary>
-        private static readonly List<DrumType> NonKicks = new List<DrumType> { DrumType.Red, DrumType.Yellow, DrumType.Blue, DrumType.Orange, DrumType.Green };
-
-        /// <summary>
         /// These are the supported Midi drum event types and which clone hero notes they can potentially be represented as.
         /// </summary>
-        public static Dictionary<GeneralMidiPercussion, List<DrumType>> PossibleNotes = new Dictionary<GeneralMidiPercussion, List<DrumType>>
+        public static Dictionary<GeneralMidiPercussion, DrumType> DrumEventTypeMapping { get; } = new Dictionary<GeneralMidiPercussion, DrumType>
         {
-            { (GeneralMidiPercussion)35, Kick },
-            { (GeneralMidiPercussion)36, Kick },
-            { (GeneralMidiPercussion)37, Pads },
-            { (GeneralMidiPercussion)38, Pads },
-            { (GeneralMidiPercussion)39, Pads },
-            { (GeneralMidiPercussion)40, Pads },
-            { (GeneralMidiPercussion)41, Pads },
-            { (GeneralMidiPercussion)42, Cymbals },
-            { (GeneralMidiPercussion)43, Pads },
-            { (GeneralMidiPercussion)44, Cymbals },
-            { (GeneralMidiPercussion)45, Pads },
-            { (GeneralMidiPercussion)46, Cymbals },
-            { (GeneralMidiPercussion)47, Pads },
-            { (GeneralMidiPercussion)48, Pads },
-            { (GeneralMidiPercussion)49, Cymbals },
-            { (GeneralMidiPercussion)50, Pads },
-            { (GeneralMidiPercussion)51, Cymbals },
-            { (GeneralMidiPercussion)52, Cymbals },
-            { (GeneralMidiPercussion)53, Cymbals },
-            { (GeneralMidiPercussion)54, Cymbals },
-            { (GeneralMidiPercussion)55, Cymbals },
-            { (GeneralMidiPercussion)56, Cymbals },
-            { (GeneralMidiPercussion)57, Cymbals },
-            { (GeneralMidiPercussion)58, Pads },
-            { (GeneralMidiPercussion)59, Cymbals },
-            { (GeneralMidiPercussion)60, Pads },
-            { (GeneralMidiPercussion)61, Pads },
-            { (GeneralMidiPercussion)62, Pads },
-            { (GeneralMidiPercussion)63, Pads },
-            { (GeneralMidiPercussion)64, Pads },
-            { (GeneralMidiPercussion)65, Pads },
-            { (GeneralMidiPercussion)66, Pads },
-            { (GeneralMidiPercussion)67, Cymbals },
-            { (GeneralMidiPercussion)68, Cymbals },
-            { (GeneralMidiPercussion)69, Pads },
-            { (GeneralMidiPercussion)70, Pads },
-            { (GeneralMidiPercussion)71, Pads },
-            { (GeneralMidiPercussion)72, Pads },
-            { (GeneralMidiPercussion)73, Pads },
-            { (GeneralMidiPercussion)74, Pads },
-            { (GeneralMidiPercussion)75, Pads },
-            { (GeneralMidiPercussion)76, Cymbals },
-            { (GeneralMidiPercussion)77, Cymbals },
-            { (GeneralMidiPercussion)78, Pads },
-            { (GeneralMidiPercussion)79, Pads },
-            { (GeneralMidiPercussion)80, Cymbals },
-            { (GeneralMidiPercussion)81, Cymbals }
+            { (GeneralMidiPercussion)35, DrumType.Kick },
+            { (GeneralMidiPercussion)36, DrumType.Kick },
+            { (GeneralMidiPercussion)37, DrumType.Snare },
+            { (GeneralMidiPercussion)38, DrumType.Snare },
+            { (GeneralMidiPercussion)39, DrumType.Misc },
+            { (GeneralMidiPercussion)40, DrumType.Snare },
+            { (GeneralMidiPercussion)41, DrumType.Tom },
+            { (GeneralMidiPercussion)42, DrumType.HiHat },
+            { (GeneralMidiPercussion)43, DrumType.Tom },
+            { (GeneralMidiPercussion)44, DrumType.HiHat },
+            { (GeneralMidiPercussion)45, DrumType.Tom },
+            { (GeneralMidiPercussion)46, DrumType.HiHat },
+            { (GeneralMidiPercussion)47, DrumType.Tom },
+            { (GeneralMidiPercussion)48, DrumType.Tom },
+            { (GeneralMidiPercussion)49, DrumType.Crash },
+            { (GeneralMidiPercussion)50, DrumType.Tom },
+            { (GeneralMidiPercussion)51, DrumType.Ride },
+            { (GeneralMidiPercussion)52, DrumType.Crash },
+            { (GeneralMidiPercussion)53, DrumType.Ride },
+            { (GeneralMidiPercussion)54, DrumType.Crash },
+            { (GeneralMidiPercussion)55, DrumType.Crash },
+            { (GeneralMidiPercussion)56, DrumType.Ride },
+            { (GeneralMidiPercussion)57, DrumType.Crash },
+            { (GeneralMidiPercussion)58, DrumType.Crash },
+            { (GeneralMidiPercussion)59, DrumType.Ride },
+            { (GeneralMidiPercussion)60, DrumType.Tom },
+            { (GeneralMidiPercussion)61, DrumType.Tom },
+            { (GeneralMidiPercussion)62, DrumType.Snare },
+            { (GeneralMidiPercussion)63, DrumType.Tom },
+            { (GeneralMidiPercussion)64, DrumType.Tom },
+            { (GeneralMidiPercussion)65, DrumType.Tom },
+            { (GeneralMidiPercussion)66, DrumType.Tom },
+            { (GeneralMidiPercussion)67, DrumType.Ride },
+            { (GeneralMidiPercussion)68, DrumType.Ride },
+            { (GeneralMidiPercussion)69, DrumType.Misc },
+            { (GeneralMidiPercussion)70, DrumType.Ride },
+            { (GeneralMidiPercussion)71, DrumType.Misc },
+            { (GeneralMidiPercussion)72, DrumType.Misc },
+            { (GeneralMidiPercussion)73, DrumType.Misc },
+            { (GeneralMidiPercussion)74, DrumType.Misc },
+            { (GeneralMidiPercussion)75, DrumType.Ride },
+            { (GeneralMidiPercussion)76, DrumType.Ride },
+            { (GeneralMidiPercussion)77, DrumType.Ride },
+            { (GeneralMidiPercussion)78, DrumType.Misc },
+            { (GeneralMidiPercussion)79, DrumType.Misc },
+            { (GeneralMidiPercussion)80, DrumType.Ride },
+            { (GeneralMidiPercussion)81, DrumType.Ride }
+        };
+
+        /// <summary>
+        /// These are the potential drum notes you can play on the toms. They are listed in order from Lowest pitch to highest pitch.
+        /// They numbers however are reversed because on the Highway the Lowest tom is on the far right and the highest tom is on the far left
+        /// </summary>
+        public static Dictionary<GeneralMidiPercussion, int> TomPitchOrdering { get; } = new Dictionary<GeneralMidiPercussion, int>
+        {
+            { (GeneralMidiPercussion)41, 11 },
+            { (GeneralMidiPercussion)43, 10},
+            { (GeneralMidiPercussion)45, 9 },
+            { (GeneralMidiPercussion)47, 8 },
+            { (GeneralMidiPercussion)48, 7 },
+            { (GeneralMidiPercussion)50, 6 },
+            { (GeneralMidiPercussion)60, 5 },
+            { (GeneralMidiPercussion)61, 4 },
+            { (GeneralMidiPercussion)63, 3 },
+            { (GeneralMidiPercussion)64, 2 },
+            { (GeneralMidiPercussion)65, 1 },
+            { (GeneralMidiPercussion)66, 0 }
         };
     }
 }
