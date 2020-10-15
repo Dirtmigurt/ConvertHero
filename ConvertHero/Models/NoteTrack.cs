@@ -98,7 +98,7 @@
         /// Each event has a tone from 0 -> 127. These must be mapped down to 0->4 such that
         /// the overall structure of the song remains unchanged.
         /// 
-        /// Note that this is impossible to do perfectly as representing tones [0,1,2,3,4,5] must wrap around somewhere
+        /// Note that this is impossible to do perfectly as representing tones [0,1,2,3,4] must wrap around somewhere
         /// and there is no absolutely correct way to do this.
         /// 
         /// This method deploys lots of heuristics that can fail in certain situations and produce notes that are jarring 
@@ -113,13 +113,58 @@
             List<int> notes = LocalNormalization(this.Notes);
 
             // MAP all notes down to 0-4
-            RiseAndFallMapper(this.Notes);
+            RiseAndFallMapper(this.Notes, 5);
 
             // Build the chords back out since they were stripped into single notes
             //RebuildChords();
 
             // Fix sustains, since midi files sustain ALL notes
             //FixSustains();
+        }
+
+        /// <summary>
+        /// Each event has a tone from 0 -> 127. These must be mapped down to 0->5 such that
+        /// the overall structure of the song remains unchanged.
+        /// 
+        /// Note that this is impossible to do perfectly as representing tones [0,1,2,3,4,5] must wrap around somewhere
+        /// and there is no absolutely correct way to do this.
+        /// 
+        /// This method deploys lots of heuristics that can fail in certain situations and produce notes that are jarring 
+        /// or inconsistent with the tones being played.
+        /// </summary>
+        public void BassGuitarReshape()
+        {
+            // Break chords into a single note, keeping the number of fingers to use and the Tone span
+            BreakChords();
+
+            // Normalize as many note transitions as possible down to single steps
+            List<int> notes = LocalNormalization(this.Notes);
+
+            // MAP all notes down to 0-5
+            RiseAndFallMapper(this.Notes, 6);
+
+            // Handle open note replacements
+            Change6NotesTo5WithOpen(this.Notes);
+
+            // Build the chords back out since they were stripped into single notes
+            RebuildChords();
+
+            // Fix sustains, since midi files sustain ALL notes
+            FixSustains();
+        }
+
+        /// <summary>
+        /// Change the track that uses 6 unique notes to the way clone hero denotes open notes (7).
+        /// This just shifts all not values down 1 value so 6 becomes 5, 5 becomes 4, and 0 becomes -1.
+        /// 0-5 are valid values for Green/Red/Yellow/Blue/Orange, so we need to change -1 to the value for an open note (7);
+        /// </summary>
+        /// <param name="notes"></param>
+        private void Change6NotesTo5WithOpen(List<ChartEvent> notes)
+        {
+            foreach(ChartEvent note in notes)
+            {
+                note.Type = note.Type == 0 ? 7 : note.Type - 1;
+            }
         }
 
         /// <summary>
@@ -132,7 +177,7 @@
         /// </summary>
         /// <param name="notes">
         /// </param>
-        private void RiseAndFallMapper(List<ChartEvent> notes)
+        private void RiseAndFallMapper(List<ChartEvent> notes, int outputTones = 5)
         {
             // Remove duplicate notes
             int prev = -1;
@@ -206,12 +251,12 @@
                 }
             }
 
-            List<int> runMaxes = runs.Select(l => l.Max() + l.Min() / 2).ToList();
-            runMaxes = NoteReduceMapping(runMaxes);
+            List<int> runMaxes = runs.Select(l => (l.Max() + l.Min()) / 2).ToList();
+            runMaxes = NoteReduceMapping(runMaxes, outputTones);
             for(int i = 0; i < runMaxes.Count; i++)
             {
                 // Break the run up
-                runs[i] = BreakRun(runs[i], runMaxes[i]);
+                runs[i] = BreakRun(runs[i], runMaxes[i], outputTones);
             }
 
             // Adjust each run up/down to prevent runs from having the same first/last note
@@ -279,7 +324,7 @@
         /// <returns>
         /// The changed run.
         /// </returns>
-        public List<int> BreakRun(List<int> run, int anchor)
+        public List<int> BreakRun(List<int> run, int anchor, int boardWidth)
         {
             int runLength = run.Count;
             bool repeat = true;
@@ -287,7 +332,7 @@
             while (repeat)
             {
                 repeat = false;
-                if (runLength < 6)
+                if (runLength <= boardWidth)
                 {
                     for (int j = 0; j < runLength; j++)
                     {
@@ -296,44 +341,49 @@
                 }
                 else if (runLength % 3 == 0)
                 {
+                    int n = boardWidth - 3 + 1;
                     // 0,1,2 | 1,2,3 | 2,3,4
                     for (int j = 0; j < runLength; j++)
                     {
-                        newNotes.Add((j % 3) + ((j / 3) % 3));
+                        newNotes.Add((j % 3) + ((j / 3) % n));
                     }
                 }
                 else if (runLength % 7 == 0)
                 {
                     // 0,1,2,3 | 2,3,4
-                    for (int j = 0; j < runLength; j++)
+                    for (int k = runLength; k > 0; k -= 7)
                     {
-                        newNotes.Add((j % 4) + (2 * ((j / 4) % 2)));
+                        for (int j = 0; j < 7; j++)
+                        {
+                            newNotes.Add((j % 4) + (2 * ((j / 4) % 2)));
+                        }
                     }
                 }
                 else if (runLength % 8 == 0)
                 {
+                    int n = boardWidth - 4 + 1;
                     // 0,1,2,3 | 1,2,3,4
                     for (int j = 0; j < runLength; j++)
                     {
-                        newNotes.Add((j % 4) + ((j / 4) % 2));
+                        newNotes.Add((j % 4) + ((j / 4) % n));
                     }
                 }
-                else if (runLength % 10 == 0)
+                else if (runLength % boardWidth == 0)
                 {
                     // 0-4 as many times as needed
                     for (int j = 0; j < runLength; j++)
                     {
-                        newNotes.Add((j % 5));
+                        newNotes.Add((j % boardWidth));
                     }
                 }
                 else
                 {
                     // put an green-> orange run in and see if any of the above patterns will fit.
-                    for (int j = 0; j < 5; j++)
+                    for (int j = 0; j < boardWidth; j++)
                     {
                         newNotes.Add(j);
                     }
-                    runLength -= 5;
+                    runLength -= boardWidth;
                     repeat = true;
                 }
             }
@@ -352,7 +402,11 @@
             int max = newNotes.Max();
             min = newNotes.Min();
 
-            int bump = Math.Min(4 - max, anchor);
+            int bump = Math.Min(boardWidth - 1 - max, anchor);
+            if (bump < 0)
+            {
+                ;
+            }
             newNotes = newNotes.Select(n => n + bump).ToList();
             return newNotes;
         }
@@ -361,7 +415,7 @@
         /// Each event has a tone from 35 -> 81. These must be mapped down to 0->4 such that
         /// the overall structure of the song remains unchanged.
         /// 
-        /// Note that this is impossible to do perfectly as there are only 2 cymbals and 3 snare/toms on the highway.
+        /// Note that this is impossible to do perfectly as there are only 3 cymbals and 4 snare/toms on the highway.
         /// 
         /// This method deploys lots of heuristics that can fail in certain situations and produce notes that are jarring 
         /// or inconsistent with the tones being played.
@@ -370,42 +424,93 @@
         {
             //split notes into 3 tracks, kick/cymbal/pad
             List<ChartEvent> kickEvents = new List<ChartEvent>();
-            List<ChartEvent> cymbalEvents = new List<ChartEvent>();
-            List<ChartEvent> padEvents = new List<ChartEvent>();
-            List<ChartEvent> miscEvents = new List<ChartEvent>();
-            foreach(ChartEvent ev in this.Notes)
+            List<ChartEvent> snareEvents = new List<ChartEvent>();
+            List<ChartEvent> hiHatEvents = new List<ChartEvent>();
+            List<ChartEvent> crashEvents = new List<ChartEvent>();
+            List<ChartEvent> rideEvents = new List<ChartEvent>();
+            List<ChartEvent> tomEvents = new List<ChartEvent>();
+
+            foreach (ChartEvent ev in this.Notes)
             {
                 // Kill the sustains
                 ev.Sustain = 0;
-                int n = PossibleNotes[(GeneralMidiPercussion)ev.Type].Count;
-                switch(n)
+                // put the event into the correct bucket kick/snare/tom/cymbal
+                if (DrumEventTypeMapping.TryGetValue((GeneralMidiPercussion)ev.Type, out DrumType type))
                 {
-                    case 1:
-                        kickEvents.Add(ev);
-                        break;
-                    case 2:
-                        cymbalEvents.Add(ev);
-                        break;
-                    case 3:
-                        padEvents.Add(ev);
-                        break;
-                    default:
-                        miscEvents.Add(ev);
-                        break;
+                    switch (type)
+                    {
+                        case DrumType.Kick:
+                            ev.Type = 0;
+                            kickEvents.Add(ev);
+                            break;
+                        case DrumType.Snare:
+                            ev.Type = 1;
+                            snareEvents.Add(ev);
+                            break;
+                        case DrumType.HiHat:
+                            ev.Type = 2;
+                            ev.IsCymbal = true;
+                            hiHatEvents.Add(ev);
+                            break;
+                        case DrumType.Crash:
+                            ev.Type = 3;
+                            ev.IsCymbal = true;
+                            crashEvents.Add(ev);
+                            break;
+                        case DrumType.Ride:
+                            ev.Type = 4;
+                            ev.IsCymbal = true;
+                            rideEvents.Add(ev);
+                            break;
+                        case DrumType.Tom:
+                            tomEvents.Add(ev);
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
 
-            // MAP KICKS
-            foreach(ChartEvent ev in kickEvents)
+            // Convert the midi identifiers to tonal identifiers where 0 is the highest pitch tom and 11 is the lowest pitch tom.
+            foreach (ChartEvent tomEvent in tomEvents)
             {
-                ev.Type = (int)DrumType.Kick;
+                tomEvent.Type = TomPitchOrdering[(GeneralMidiPercussion)tomEvent.Type];
             }
 
-            // MAP CYMBALS (2 notes)
-            MapDrumNotes(cymbalEvents, Cymbals);
+            // Reduce the tom notes down from 12 potential tones to 3
+            RiseAndFallMapper(tomEvents, 3);
 
-            // MAP PADS
-            MapDrumNotes(padEvents, Pads);
+            // Build a dictionary that allows the lookup of cymbal events by the tick it occurrs on.
+            List<ChartEvent> cymbalEvents = new List<ChartEvent>(hiHatEvents);
+            cymbalEvents.AddRange(crashEvents);
+            cymbalEvents.AddRange(rideEvents);
+            Dictionary<long, List<ChartEvent>> cymbalTrack = new Dictionary<long, List<ChartEvent>>();
+            foreach (ChartEvent ev in cymbalEvents)
+            {
+                if (cymbalTrack.ContainsKey(ev.Tick))
+                {
+                    cymbalTrack[ev.Tick].Add(ev);
+                }
+                else
+                {
+                    cymbalTrack[ev.Tick] = new List<ChartEvent> { ev };
+                }
+            }
+
+
+            foreach(ChartEvent tomEvent in tomEvents)
+            {
+                if (cymbalTrack.ContainsKey(tomEvent.Tick))
+                {
+                    // Force the note to be played on the snare since it overlaps with the cymbal.
+                    // Ideally the game would allow this *cough* phase shift 7 lane *cough*
+                    tomEvent.Type = 1;
+                }
+                else
+                {
+                    tomEvent.Type += 2;
+                }
+            }
         }
 
         /// <summary>
@@ -596,10 +701,9 @@
         /// <returns>
         /// The list of mapped notes containing only values 0->4
         /// </returns>
-        private List<int> NoteReduceMapping(List<int> ogNotes)
+        private List<int> NoteReduceMapping(List<int> ogNotes, int window = 5)
         {
             List<int> rawMapping = new List<int>();
-            int window = 5;
             for (int i = 0; i < ogNotes.Count; i++)
             {
                 HashSet<int> localNotes = new HashSet<int> { ogNotes[i] };
@@ -684,14 +788,17 @@
                 var map = BuildChordMap(deg, width);
 
                 // for each note in measure, apply mapping
-                foreach(ChartEvent ev in measure)
+                foreach (ChartEvent ev in measure)
                 {
-                    List<int> chord = map[ev.Type];
-                    // Delete ev from this.Notes
-                    this.Notes.Remove(ev);
-                    foreach(int note in chord)
+                    if (map.ContainsKey(ev.Type))
                     {
-                        this.Notes.Add(new ChartEvent(ev.Tick, note, ev.Sustain));
+                        List<int> chord = map[ev.Type];
+                        // Delete ev from this.Notes
+                        this.Notes.Remove(ev);
+                        foreach (int note in chord)
+                        {
+                            this.Notes.Add(new ChartEvent(ev.Tick, note, ev.Sustain));
+                        }
                     }
                 }
             }
@@ -960,81 +1067,77 @@
         }
 
         /// <summary>
-        /// List of potential clone hero notes that can be used for a drum type.
-        /// In this case only the kick (open note) can be used for kick events.
-        /// </summary>
-        private static List<DrumType> Kick = new List<DrumType> { DrumType.Kick };
-
-        /// <summary>
-        /// List of potential clone hero notes that can be used for a drum type.
-        /// In this case the Red/Blue/Green notes can be used for pad events.
-        /// </summary>
-        private static List<DrumType> Pads = new List<DrumType> { DrumType.Red, DrumType.Blue, DrumType.Green };
-
-        /// <summary>
-        /// List of potential clone hero notes that can be used for a drum type.
-        /// In this case the Yellow/Orange notes can be used for cymbal events.
-        /// </summary>
-        private static List<DrumType> Cymbals = new List<DrumType> { DrumType.Yellow, DrumType.Orange };
-
-        /// <summary>
-        /// List of potential clone hero notes that can be used for a drum type.
-        /// In this case the Red/Blue/Green/Yellow/Orange notes can be used for miscellaneous events.
-        /// </summary>
-        private static List<DrumType> NonKicks = new List<DrumType> { DrumType.Red, DrumType.Yellow, DrumType.Blue, DrumType.Orange, DrumType.Green };
-
-        /// <summary>
         /// These are the supported Midi drum event types and which clone hero notes they can potentially be represented as.
         /// </summary>
-        public static Dictionary<GeneralMidiPercussion, List<DrumType>> PossibleNotes = new Dictionary<GeneralMidiPercussion, List<DrumType>>
+        public static Dictionary<GeneralMidiPercussion, DrumType> DrumEventTypeMapping { get; } = new Dictionary<GeneralMidiPercussion, DrumType>
         {
-            { (GeneralMidiPercussion)35, Kick },
-            { (GeneralMidiPercussion)36, Kick },
-            { (GeneralMidiPercussion)37, Pads },
-            { (GeneralMidiPercussion)38, Pads },
-            { (GeneralMidiPercussion)39, Pads },
-            { (GeneralMidiPercussion)40, Pads },
-            { (GeneralMidiPercussion)41, Pads },
-            { (GeneralMidiPercussion)42, Cymbals },
-            { (GeneralMidiPercussion)43, Pads },
-            { (GeneralMidiPercussion)44, Cymbals },
-            { (GeneralMidiPercussion)45, Pads },
-            { (GeneralMidiPercussion)46, Cymbals },
-            { (GeneralMidiPercussion)47, Pads },
-            { (GeneralMidiPercussion)48, Pads },
-            { (GeneralMidiPercussion)49, Cymbals },
-            { (GeneralMidiPercussion)50, Pads },
-            { (GeneralMidiPercussion)51, Cymbals },
-            { (GeneralMidiPercussion)52, Cymbals },
-            { (GeneralMidiPercussion)53, Cymbals },
-            { (GeneralMidiPercussion)54, Cymbals },
-            { (GeneralMidiPercussion)55, Cymbals },
-            { (GeneralMidiPercussion)56, Cymbals },
-            { (GeneralMidiPercussion)57, Cymbals },
-            { (GeneralMidiPercussion)58, Pads },
-            { (GeneralMidiPercussion)59, Cymbals },
-            { (GeneralMidiPercussion)60, Pads },
-            { (GeneralMidiPercussion)61, Pads },
-            { (GeneralMidiPercussion)62, Pads },
-            { (GeneralMidiPercussion)63, Pads },
-            { (GeneralMidiPercussion)64, Pads },
-            { (GeneralMidiPercussion)65, Pads },
-            { (GeneralMidiPercussion)66, Pads },
-            { (GeneralMidiPercussion)67, Cymbals },
-            { (GeneralMidiPercussion)68, Cymbals },
-            { (GeneralMidiPercussion)69, Pads },
-            { (GeneralMidiPercussion)70, Pads },
-            { (GeneralMidiPercussion)71, Pads },
-            { (GeneralMidiPercussion)72, Pads },
-            { (GeneralMidiPercussion)73, Pads },
-            { (GeneralMidiPercussion)74, Pads },
-            { (GeneralMidiPercussion)75, Pads },
-            { (GeneralMidiPercussion)76, Cymbals },
-            { (GeneralMidiPercussion)77, Cymbals },
-            { (GeneralMidiPercussion)78, Pads },
-            { (GeneralMidiPercussion)79, Pads },
-            { (GeneralMidiPercussion)80, Cymbals },
-            { (GeneralMidiPercussion)81, Cymbals }
+            { (GeneralMidiPercussion)35, DrumType.Kick },
+            { (GeneralMidiPercussion)36, DrumType.Kick },
+            { (GeneralMidiPercussion)37, DrumType.Snare },
+            { (GeneralMidiPercussion)38, DrumType.Snare },
+            { (GeneralMidiPercussion)39, DrumType.Misc },
+            { (GeneralMidiPercussion)40, DrumType.Snare },
+            { (GeneralMidiPercussion)41, DrumType.Tom },
+            { (GeneralMidiPercussion)42, DrumType.HiHat },
+            { (GeneralMidiPercussion)43, DrumType.Tom },
+            { (GeneralMidiPercussion)44, DrumType.HiHat },
+            { (GeneralMidiPercussion)45, DrumType.Tom },
+            { (GeneralMidiPercussion)46, DrumType.HiHat },
+            { (GeneralMidiPercussion)47, DrumType.Tom },
+            { (GeneralMidiPercussion)48, DrumType.Tom },
+            { (GeneralMidiPercussion)49, DrumType.Crash },
+            { (GeneralMidiPercussion)50, DrumType.Tom },
+            { (GeneralMidiPercussion)51, DrumType.Ride },
+            { (GeneralMidiPercussion)52, DrumType.Crash },
+            { (GeneralMidiPercussion)53, DrumType.Ride },
+            { (GeneralMidiPercussion)54, DrumType.Crash },
+            { (GeneralMidiPercussion)55, DrumType.Crash },
+            { (GeneralMidiPercussion)56, DrumType.Ride },
+            { (GeneralMidiPercussion)57, DrumType.Crash },
+            { (GeneralMidiPercussion)58, DrumType.Crash },
+            { (GeneralMidiPercussion)59, DrumType.Ride },
+            { (GeneralMidiPercussion)60, DrumType.Tom },
+            { (GeneralMidiPercussion)61, DrumType.Tom },
+            { (GeneralMidiPercussion)62, DrumType.Snare },
+            { (GeneralMidiPercussion)63, DrumType.Tom },
+            { (GeneralMidiPercussion)64, DrumType.Tom },
+            { (GeneralMidiPercussion)65, DrumType.Tom },
+            { (GeneralMidiPercussion)66, DrumType.Tom },
+            { (GeneralMidiPercussion)67, DrumType.Ride },
+            { (GeneralMidiPercussion)68, DrumType.Ride },
+            { (GeneralMidiPercussion)69, DrumType.Misc },
+            { (GeneralMidiPercussion)70, DrumType.Ride },
+            { (GeneralMidiPercussion)71, DrumType.Misc },
+            { (GeneralMidiPercussion)72, DrumType.Misc },
+            { (GeneralMidiPercussion)73, DrumType.Misc },
+            { (GeneralMidiPercussion)74, DrumType.Misc },
+            { (GeneralMidiPercussion)75, DrumType.Ride },
+            { (GeneralMidiPercussion)76, DrumType.Ride },
+            { (GeneralMidiPercussion)77, DrumType.Ride },
+            { (GeneralMidiPercussion)78, DrumType.Misc },
+            { (GeneralMidiPercussion)79, DrumType.Misc },
+            { (GeneralMidiPercussion)80, DrumType.Ride },
+            { (GeneralMidiPercussion)81, DrumType.Ride }
+        };
+
+        /// <summary>
+        /// These are the potential drum notes you can play on the toms. They are listed in order from Lowest pitch to highest pitch.
+        /// They numbers however are reversed because on the Highway the Lowest tom is on the far right and the highest tom is on the far left
+        /// </summary>
+        public static Dictionary<GeneralMidiPercussion, int> TomPitchOrdering { get; } = new Dictionary<GeneralMidiPercussion, int>
+        {
+            { (GeneralMidiPercussion)41, 11 },
+            { (GeneralMidiPercussion)43, 10},
+            { (GeneralMidiPercussion)45, 9 },
+            { (GeneralMidiPercussion)47, 8 },
+            { (GeneralMidiPercussion)48, 7 },
+            { (GeneralMidiPercussion)50, 6 },
+            { (GeneralMidiPercussion)60, 5 },
+            { (GeneralMidiPercussion)61, 4 },
+            { (GeneralMidiPercussion)63, 3 },
+            { (GeneralMidiPercussion)64, 2 },
+            { (GeneralMidiPercussion)65, 1 },
+            { (GeneralMidiPercussion)66, 0 }
         };
     }
 }
