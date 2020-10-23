@@ -86,6 +86,11 @@ namespace ConvertHero.AudioFileHelpers
             return output;
         }
 
+        public void Reset()
+        {
+            this.state = new float[this.state.Length];
+        }
+
         /// <summary>
         /// x86_64 specific implementation
         /// </summary>

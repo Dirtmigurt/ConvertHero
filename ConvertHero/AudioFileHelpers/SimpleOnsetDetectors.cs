@@ -21,7 +21,6 @@ namespace ConvertHero.AudioFileHelpers
     {
         private float sampleRate;
 
-
         private bool firstFrame = true;
 
         // USED FOR RMS ONSET DETECTION

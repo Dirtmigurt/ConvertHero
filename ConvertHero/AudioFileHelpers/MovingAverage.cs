@@ -27,6 +27,7 @@ namespace ConvertHero.AudioFileHelpers
 
         public float[] Compute(float[] input)
         {
+            this.filter.Reset();
             return this.filter.Compute(input);
         }
     }

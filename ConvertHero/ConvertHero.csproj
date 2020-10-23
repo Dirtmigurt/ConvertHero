@@ -126,9 +126,15 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AudioFileHelpers\AutoCorrelation.cs" />
+    <Compile Include="AudioFileHelpers\BeatTrackerMultifeature.cs" />
     <Compile Include="AudioFileHelpers\CartesianToPolar.cs" />
     <Compile Include="AudioFileHelpers\ChartFileReader.cs" />
+    <Compile Include="AudioFileHelpers\ERBBands.cs" />
+    <Compile Include="AudioFileHelpers\ExtensionsMethods.cs" />
     <Compile Include="AudioFileHelpers\Flux.cs" />
+    <Compile Include="AudioFileHelpers\FrameCutter.cs" />
+    <Compile Include="AudioFileHelpers\FrequencyBands.cs" />
     <Compile Include="AudioFileHelpers\HighFrequencyContent.cs" />
     <Compile Include="AudioFileHelpers\IIR.cs" />
     <Compile Include="AudioFileHelpers\MathHelpers.cs" />
@@ -136,15 +142,26 @@
     <Compile Include="AudioFileHelpers\MelBands.cs" />
     <Compile Include="AudioFileHelpers\MovingAverage.cs" />
     <Compile Include="AudioFileHelpers\MultiFileSampleReader.cs" />
+    <Compile Include="AudioFileHelpers\OnsetDetectionGlobal.cs" />
     <Compile Include="AudioFileHelpers\PeakDetection.cs" />
+    <Compile Include="AudioFileHelpers\PitchContours.cs" />
+    <Compile Include="AudioFileHelpers\PitchContoursMelody.cs" />
+    <Compile Include="AudioFileHelpers\PitchSalienceFunction.cs" />
+    <Compile Include="AudioFileHelpers\PitchSalienceFunctionPeaks.cs" />
+    <Compile Include="AudioFileHelpers\PredominantPitchMelodia.cs" />
+    <Compile Include="AudioFileHelpers\RhythmExtractor.cs" />
     <Compile Include="AudioFileHelpers\SignalNormalization.cs" />
     <Compile Include="AudioFileHelpers\NoveltyCurve.cs" />
     <Compile Include="AudioFileHelpers\SampleReader.cs" />
     <Compile Include="AudioFileHelpers\SignalProcessing.cs" />
     <Compile Include="AudioFileHelpers\SimpleOnsetDetectors.cs" />
     <Compile Include="AudioFileHelpers\SpectralCentroid.cs" />
+    <Compile Include="AudioFileHelpers\SpectralPeaks.cs" />
     <Compile Include="AudioFileHelpers\Spectrum.cs" />
     <Compile Include="AudioFileHelpers\SuperFlux.cs" />
+    <Compile Include="AudioFileHelpers\TempoScaleBands.cs" />
+    <Compile Include="AudioFileHelpers\TempoTapDegara.cs" />
+    <Compile Include="AudioFileHelpers\TempoTapMaxAgreement.cs" />
     <Compile Include="AudioFileHelpers\TriangularBands.cs" />
     <Compile Include="AudioFileHelpers\Windowing.cs" />
     <Compile Include="CNTKModels\ConvolutionalNeuralNetwork.cs" />

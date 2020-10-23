@@ -11,6 +11,8 @@
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
     using System.Windows;
     using System.Windows.Forms;
 
@@ -80,8 +82,9 @@
 
         private void TrainModelButton_Click(object sender, RoutedEventArgs e)
         {
+            TestMethod(@"C:\test\BedofRazors.mp3");
             //GetMidiFileLabels(@"E:\clonehero-win64\Songs\Rock Band 3 DLC\Rock Band 3 - DLC\Breaking Benjamin - Sooner or Later\notes.mid", 50);
-            BuildMasterFeaturefile();
+            //BuildMasterFeaturefile();
             // Load the Audio file (features)
             //float[,] features = GetAudioFileFeatures();
 
@@ -92,14 +95,65 @@
             //outputFile = System.IO.Path.ChangeExtension(this.AudioFileName, "Mel.ctf");
             //WriteFeatureLabelFile(outputFile, features, notesbyFrames);
 
-            string featureFile = @"C:\test\Workspace\CloneHeroOnsetFeatureSetV2.ctf";
+            //string featureFile = @"C:\test\Workspace\CloneHeroOnsetFeatureSetV2.ctf";
             //CNTKModels.LSTMSequenceClassifier.ValidateModelFile(@"C:\test\LSTMOnset.model", featureFile, DeviceDescriptor.GPUDevice(0));
-            CNTKModels.LSTMSequenceClassifier.Train(DeviceDescriptor.CPUDevice, featureFile, false); 
+            //CNTKModels.LSTMSequenceClassifier.Train(DeviceDescriptor.CPUDevice, featureFile, false); 
             //CNTKModels.ConvolutionalNeuralNetwork.TrainAndEvaluate(DeviceDescriptor.CPUDevice, featureFile, true, true);
             //CNTKModels.RecurrentConvolutionalNeuralNetwork.TrainAndEvaluate(DeviceDescriptor.GPUDevice(0), featureFile, true);
             //CNTKModels.LSTMSequenceClassifier.ValidateModelFile(@"C:\test\Temp\Convolution.model", featureFile, DeviceDescriptor.GPUDevice(0));
             
             ;
+        }
+
+        private void TestMethod(string audioFile)
+        {
+            using (AudioFileHelpers.SampleReader reader = new AudioFileHelpers.SampleReader(audioFile, 50, (1 << 14)))
+            {
+                float[] signal = reader.ReadAll();
+                //PredominantPitchMelodia melodyDetect = new PredominantPitchMelodia();
+                //var (x, y) = Task.Run(() => melodyDetect.ComputeAsync(signal)).Result;
+                //using(StreamWriter writer = new StreamWriter(@"C:\test\pitches.csv"))
+                //{
+                //    for(int i = 0; i < x.Length; i++)
+                //    {
+                //        writer.WriteLine($"{x[i]},{y[i]}");
+                //    }
+                //}
+
+                //return;
+
+                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                RhythmExtractor extractor = new RhythmExtractor(reader.SampleRate, 130, 150);
+                var (bpm, ticks, confidence, estimates, bpmIntervals) = extractor.Compute(signal);
+
+                List<SyncEvent> syncTrack = new List<SyncEvent> { new SyncEvent(0, 1, 4) };
+                int currentTick = 0;
+                float currentTime = 0;
+                for (int i = 0; i < ticks.Length; i++)
+                {
+                    float targetTime = ticks[i];
+
+                    // What BPM value will make 192 ticks == tick - currentTime
+                    float deltaT = targetTime - currentTime;
+                    double b = 60f / deltaT;
+                    syncTrack.Add(new SyncEvent(currentTick, b));
+
+                    currentTick = 192 * (i + 1);
+                    currentTime = targetTime;
+                }
+
+
+                // Write a .chart file with the sync track filled out
+                using (StreamWriter writer = new StreamWriter(Path.ChangeExtension(audioFile, ".chart")))
+                {
+                    // Write SONG section
+                    writer.WriteLine(string.Format(Properties.Resources.SongSection, 192, Path.GetFileName(audioFile)));
+
+                    // Write SYNC section
+                    writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", syncTrack.Select(s => s.ToString()))));
+                }
+                /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            }
         }
 
         private void BuildMasterFeaturefile()

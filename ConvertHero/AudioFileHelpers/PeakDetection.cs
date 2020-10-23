@@ -14,9 +14,10 @@ namespace ConvertHero.AudioFileHelpers
         int maxPeaks;
         float range;
         bool interpolate;
-        string orderby;
+        OrderByType orderby;
+        float minPeakDistance;
 
-        public PeakDetection(float minPos = 0, float maxPos = -1, float threshold = 1e-6f, int maxPeaks= -1, float range = 1, bool interpolate = true, string orderby = "position")
+        public PeakDetection(float minPos = 0, float maxPos = -1, float threshold = 1e-6f, int maxPeaks= -1, float range = 1, bool interpolate = true, OrderByType orderby = OrderByType.Position, float minPeakDistance = 0)
         {
             this.minPosition = minPos;
             this.maxPosition = maxPos;
@@ -25,13 +26,11 @@ namespace ConvertHero.AudioFileHelpers
             this.range = range;
             this.interpolate = interpolate;
             this.orderby = orderby;
+            this.minPeakDistance = minPeakDistance;
         }
 
-        public List<float> Compute(float[] signal)
+        public (float[] positions, float[] amplitudes) Compute(float[] signal)
         {
-            float maxPos = this.maxPosition > this.minPosition ? this.maxPosition : signal.Length;
-            float mPeaks = this.maxPeaks > 0 ? this.maxPeaks : signal.Length;
-
             List<Peak> peaks = new List<Peak>(signal.Length);
             int size = signal.Length;
             float scale = this.range / (signal.Length - 1);
@@ -103,7 +102,7 @@ namespace ConvertHero.AudioFileHelpers
 
                     float resultPos = resultBin * scale;
 
-                    if (resultPos > maxPos)
+                    if (resultPos > this.maxPosition)
                     {
                         break;
                     }
@@ -138,7 +137,7 @@ namespace ConvertHero.AudioFileHelpers
             }
 
             // check upper boundary here, so peaks are already sorted by position
-            float pos = maxPos / scale;
+            float pos = this.maxPosition / scale;
             if (size - 2 < pos && pos <= size - 1 && signal[size - 1] > signal[size - 2])
             {
                 if (signal[size - 1] > this.threshold)
@@ -147,34 +146,63 @@ namespace ConvertHero.AudioFileHelpers
                 }
             }
 
-            // we only want this many peaks
-            int nWantedPeaks = Math.Min((int)mPeaks, (int)peaks.Count);
-
-            if (this.orderby.Equals("amplitude", StringComparison.InvariantCultureIgnoreCase))
+            if (this.minPeakDistance > 0 && peaks.Count > 1)
             {
-                // sort peaks by magnitude, in case of equality,
-                // return the one having smaller position
-                //std::sort(peaks.begin(), peaks.end(), ComparePeakMagnitude<std::greater<Real>, std::less<Real>>());
-                peaks.Sort();
+                List<int> deletedPeaks = new List<int>();
+                float minPos;
+                float maxPos;
+
+                // order peaks by DESCENDING magnitude
+                peaks = peaks.OrderByDescending(p => p.magnitude).ToList();
+
+                int k = 0;
+                while(k < peaks.Count - 1)
+                {
+                    minPos = peaks[k].position - this.minPeakDistance;
+                    maxPos = peaks[k].position + this.minPeakDistance;
+
+                    for( int l = k + 1; l < peaks.Count; l++)
+                    {
+                        if (peaks[l].position > minPos && peaks[l].position < maxPos)
+                        {
+                            deletedPeaks.Add(l);
+                        }
+                    }
+
+                    // delete peaks starting from the end so the indexes are not altered
+                    deletedPeaks = deletedPeaks.OrderByDescending(p => p).ToList();
+                    for (int l = 0; l < deletedPeaks.Count; l++)
+                    {
+                        peaks.RemoveAt(deletedPeaks[l]);
+                    }
+
+                    deletedPeaks.Clear();
+                    k++;
+                }
+
+                if (this.orderby == OrderByType.Position)
+                {
+                    peaks = peaks.OrderBy(p => p.position).ToList();
+                }
             }
-            else if (this.orderby.Equals("position", StringComparison.InvariantCultureIgnoreCase))
+            else
             {
-                // they're already sorted by position
+                if(this.orderby == OrderByType.Amplitude)
+                {
+                    peaks = peaks.OrderByDescending(p => p.magnitude).ToList();
+                }
             }
 
-            List<float> result = new List<float>(signal.Length);
-            for(i = 0; i < signal.Length; i++)
+            int nPeaks = Math.Min(this.maxPeaks, peaks.Count);
+            float[] positions = new float[nPeaks];
+            float[] amplitudes = new float[nPeaks];
+            for(i = 0; i < nPeaks; i++)
             {
-                result.Add(0);
+                positions[i] = peaks[i].position;
+                amplitudes[i] = peaks[i].magnitude;
             }
 
-            foreach(Peak p in peaks)
-            {
-                int position = (int)(p.position / scale);
-                result[position] = p.magnitude;
-            }
-
-            return result;
+            return (positions, amplitudes);
         }
 
         private static void Interpolate(float left, float middle, float right, int curBin, out float resultValue, out float resultBin)

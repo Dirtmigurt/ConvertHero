@@ -12,10 +12,10 @@ namespace ConvertHero.AudioFileHelpers
         public static (float[] Magnitude, float[] Phase) ConvertComplexToPolar(Complex32[] complexSignal, bool ignoreDrums = true)
         {
 
-            float[] Magnitude = new float[complexSignal.Length / 2];
-            float[] Phase = new float[complexSignal.Length / 2];
+            float[] Magnitude = new float[complexSignal.Length];
+            float[] Phase = new float[complexSignal.Length];
 
-            for(int i = 0; i < complexSignal.Length / 2; i++)
+            for(int i = 0; i < complexSignal.Length; i++)
             {
                 Magnitude[i] = complexSignal[i].Magnitude;
                 Phase[i] = complexSignal[i].Phase;

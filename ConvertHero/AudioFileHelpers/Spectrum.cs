@@ -1,5 +1,6 @@
 ﻿using Accord.Audio;
 using MathNet.Numerics;
+using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -64,6 +65,34 @@ namespace ConvertHero.AudioFileHelpers
             MathNet.Numerics.IntegralTransforms.Fourier.Forward(fft);
 
             return fft;
+        }
+
+        public static float[] ComputeIFFT(Complex32[] fft, bool normalize = false)
+        {
+            Complex32[] temp = new Complex32[fft.Length];
+            for(int i = 0; i < fft.Length; i++)
+            {
+                temp[i] = new Complex32(fft[i].Real, fft[i].Imaginary);
+            }
+
+            MathNet.Numerics.IntegralTransforms.Fourier.Inverse(temp);
+            float[] signal = new float[temp.Length];
+            if (normalize)
+            {
+                for (int i = 0; i < signal.Length; i++)
+                {
+                    signal[i] = temp[i].Magnitude / temp.Length;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < signal.Length; i++)
+                {
+                    signal[i] = temp[i].Magnitude;
+                }
+            }
+
+            return signal;
         }
     }
 }

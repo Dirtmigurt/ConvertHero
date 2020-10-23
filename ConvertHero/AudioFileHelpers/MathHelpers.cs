@@ -1,6 +1,8 @@
 ﻿using CNTK;
 using MathNet.Numerics;
+using NAudio.Wave;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -205,6 +207,305 @@ namespace ConvertHero.AudioFileHelpers
             var maxTargets = CNTKLib.Pooling(targets, PoolingType.Max, new int[] { 3 }, new int[] { 1 });
 
             return CNTKLib.ReduceSum(CNTKLib.Abs(CNTKLib.Minus(maxPrediction, maxTargets)), new Axis(-1), name);
+        }
+
+        public static int NextPowerTwo(int n)
+        {
+            n--;
+            n |= (n >> 1);
+            n |= (n >> 2);
+            n |= (n >> 4);
+            n |= (n >> 8);
+            n |= (n >> 16);
+            return n++;
+        }
+
+        public static long NextPowerTwo(long n)
+        {
+            n--;
+            n |= (n >> 1);
+            n |= (n >> 2);
+            n |= (n >> 4);
+            n |= (n >> 8);
+            n |= (n >> 16);
+            n |= (n >> 32);
+            return n++;
+        }
+
+        /// <summary>
+        /// This mod operator does not match exactly with c++ math.h implementation.
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static float FMod(float a, float b)
+        {
+            float q = (float)Math.Floor(a / b);
+            return a - q * b;
+        }
+
+        /// <summary>
+        /// This mod operator does not match exactly with c++ math.h implementation.
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static double FMod(double a, double b)
+        {
+            double q = Math.Floor(a / b);
+            return a - q * b;
+        }
+
+        /// <summary>
+        /// Returns the L2 Norm of an array
+        /// </summary>
+        /// <param name="array"></param>
+        /// <returns></returns>
+        public static float L2Norm(params float[] array)
+        {
+            float sum = 0;
+            for(int i = 0; i < array.Length; i++)
+            {
+                sum += array[i] * array[i];
+            }
+
+            return (float)Math.Sqrt(sum);
+        }
+
+        /// <summary>
+        /// Normalize an array so that its max element is 1.
+        /// If the largest value is 0 the vector isn't touched
+        /// </summary>
+        /// <param name="array">
+        /// The array to be normalized.
+        /// </param>
+        public static void Normalize(ref float[] array)
+        {
+            float max = array.Max();
+            if (max != 0)
+            {
+                for (int i = 0; i < array.Length; i++)
+                {
+                    array[i] /= max;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Normalize an array so it's sum is equal to 1. The vector is not touched if it contains negative elements or the sum is zero.
+        /// </summary>
+        /// <param name="array">
+        /// The array to be normalized.
+        /// </param>
+        public static void NormalizeSum(ref float[] array)
+        {
+            double sumElements = 0;
+            for(int i = 0; i < array.Length; i++)
+            {
+                if (array[i] < 0)
+                {
+                    return;
+                }
+
+                sumElements += array[i];
+            }
+
+            if(sumElements != 0)
+            {
+                for( int i = 0; i < array.Length; i++)
+                {
+                    array[i] /= (float)sumElements;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Normalize an array so it's sum is equal to 1. The vector is not touched if it contains negative elements or the sum is zero.
+        /// </summary>
+        /// <param name="array">
+        /// The array to be normalized.
+        /// </param>
+        public static void NormalizeSum(ref List<float> array)
+        {
+            double sumElements = 0;
+            for (int i = 0; i < array.Count; i++)
+            {
+                if (array[i] < 0)
+                {
+                    return;
+                }
+
+                sumElements += array[i];
+            }
+
+            if (sumElements != 0)
+            {
+                for (int i = 0; i < array.Count; i++)
+                {
+                    array[i] /= (float)sumElements;
+                }
+            }
+        }
+
+        public static int ArgMax<T>(IEnumerable<T> items) where T : IComparable
+        {
+            int index = 0;
+            T max = default(T);
+            int iMax = 0;
+            foreach(T item in items)
+            {
+                if (index == 0 || item.CompareTo(max) > 0)
+                {
+                    max = item;
+                    iMax = index;
+                }
+
+                index++;
+            }
+
+            return iMax;
+        }
+
+        public static int ArgMax(float[] items)
+        {
+            if (items.Length <= 1)
+            {
+                return 0;
+            }
+
+            float max = items[0];
+            int iMax = 0;
+            for (int i = 1; i < items.Length; i++)
+            {
+                if (items[i] > max)
+                {
+                    max = items[i];
+                    iMax = i;
+                }
+            }
+
+            return iMax;
+        }
+
+        public static int ArgMax(List<float> items)
+        {
+            if (items.Count <= 1)
+            {
+                return 0;
+            }
+
+            float max = items[0];
+            int iMax = 0;
+            for (int i = 1; i < items.Count; i++)
+            {
+                if (items[i] > max)
+                {
+                    max = items[i];
+                    iMax = i;
+                }
+            }
+
+            return iMax;
+        }
+
+        public static int ArgMin<T>(IEnumerable<T> items) where T : IComparable
+        {
+            int index = 0;
+            T min = default(T);
+            int iMin = 0;
+            foreach (T item in items)
+            {
+                if (index == 0 || item.CompareTo(min) < 0)
+                {
+                    min = item;
+                    iMin = index;
+                }
+
+                index++;
+            }
+
+            return iMin;
+        }
+
+        public static float Mean(IEnumerable<float> collection)
+        {
+            int count = 0;
+            double sum = 0;
+            foreach(float f in collection)
+            {
+                sum += f;
+                count++;
+            }
+
+            return (float)(sum / Math.Max(count, 1));
+        }
+
+        public static float StdDev(IEnumerable<float> collection, float mean)
+        {
+            int N = 0;
+            double stdev = 0;
+            foreach(float f in collection)
+            {
+                stdev += Math.Pow(f - mean, 2);
+            }
+
+            return (float)Math.Sqrt(stdev / Math.Max(N, 1));
+        }
+
+        public static List<float> BinCount(List<float> input)
+        {
+            List<float> output = new List<float>();
+            int size = (int)(Math.Max(input.Max(), 0) + 0.5f) + 1;
+            for(int i = 0; i < size; i++)
+            {
+                output.Add(0);
+            }
+
+            int index = 0;
+            for(int i = 0; i < input.Count; i++)
+            {
+                index = (int)(Math.Max(input[i], 0) + 0.5);
+                if (index < output.Count)
+                {
+                    output[index]++;
+                }
+            }
+
+            return output;
+        }
+
+        public static float Log2(double n)
+        {
+            return (float)(Math.Log(n) / Math.Log(2));
+        }
+
+        public static float Accumulate(List<float> list, int inclusiveStartIndex, int exclusiveEndIndex)
+        {
+            float sum = 0;
+            for (int i = inclusiveStartIndex; i < list.Count && i < exclusiveEndIndex; i++)
+            {
+                sum += list[i];
+            }
+
+            return sum;
+        }
+
+        /// <summary>
+        /// End index is exclusive so you can do Accumulate(array, n, array.Length)
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="inclusiveStartIndex"></param>
+        /// <param name="exclusiveEndIndex"></param>
+        /// <returns></returns>
+        public static float Accumulate(float[] list, int inclusiveStartIndex, int exclusiveEndIndex)
+        {
+            float sum = 0;
+            for(int i = inclusiveStartIndex; i < list.Length && i < exclusiveEndIndex; i++)
+            {
+                sum += list[i];
+            }
+
+            return sum;
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,12 +13,14 @@ namespace ConvertHero.AudioFileHelpers
         private WindowingType type;
         private int zeroPadding = 0;
         private bool zeroPhase = false;
+        private bool normalized = false;
 
-        public Windowing(WindowingType type, int zeroPadding = 0, bool zeroPhase = false)
+        public Windowing(WindowingType type, int zeroPadding = 0, bool zeroPhase = false, bool normalized = false)
         {
             this.type = type;
             this.zeroPadding = zeroPadding;
             this.zeroPhase = zeroPhase;
+            this.normalized = false;
         }
 
         public void Compute(ref float[] signal)
@@ -29,7 +32,7 @@ namespace ConvertHero.AudioFileHelpers
 
             if (window?.Length != signal.Length)
             {
-                GenerateWindow(out this.window, signal.Length, this.type);
+                this.GenerateWindow(out this.window, signal.Length, this.type);
             }
 
             int signalSize = signal.Length;
@@ -88,7 +91,7 @@ namespace ConvertHero.AudioFileHelpers
             return newArr;
         }
 
-        public static void GenerateWindow(out float[] window, int size, WindowingType type)
+        public void GenerateWindow(out float[] window, int size, WindowingType type)
         {
             switch(type)
             {
@@ -104,10 +107,27 @@ namespace ConvertHero.AudioFileHelpers
                 case WindowingType.Triangular:
                     Triangular(out window, size);
                     break;
+                case WindowingType.BlackmanHarris62:
+                    BlackmanHarris62(out window, size);
+                    break;
+                case WindowingType.BlackmanHarris70:
+                    BlackmanHarris70(out window, size);
+                    break;
+                case WindowingType.BlackmanHarris74:
+                    BlackmanHarris74(out window, size);
+                    break;
+                case WindowingType.BlackmanHarris92:
+                    BlackmanHarris92(out window, size);
+                    break;
                 case WindowingType.Square:
                 default:
                     Square(out window, size);
                     break;
+            }
+
+            if (normalized)
+            {
+                this.NormalizeWindow();
             }
         }
 
@@ -159,6 +179,68 @@ namespace ConvertHero.AudioFileHelpers
                 window[i] = 1.0f;
             }
         }
+
+        private static void BlackmanHarris(float[] window, double a0 = 0, double a1 = 0, double a2 = 0, double a3 = 0)
+        {
+            int size = window.Length;
+
+            double fConst = 2f * Math.PI / (size - 1);
+
+            if (size % 2 != 0)
+            {
+                window[size / 2] = (float)(a0 - a1 * Math.Cos(fConst * (size / 2.0)) + a2 * Math.Cos(fConst * 2 * (size / 2.0)) - a3 * Math.Cos(fConst * 3 * (size / 2.0)));
+            }
+
+            for (int i = 0; i < size / 2; i++)
+            {
+                window[i] = (float)(a0 - a1 * Math.Cos(fConst * i) + a2 * Math.Cos(fConst * 2 * i) - a3 * Math.Cos(fConst * 3 * i));
+                window[size - i - 1] = window[i];
+            }
+        }
+
+        private static void BlackmanHarris62(out float[] window, int size)
+        {
+            window = new float[size];
+            BlackmanHarris(window, 0.44959, 0.49364, 0.05677);
+        }
+
+        private void BlackmanHarris70(out float[] window, int size)
+        {
+            window = new float[size];
+            BlackmanHarris(window, 0.42323, 0.49755, 0.07922);
+        }
+
+        private void BlackmanHarris74(out float[] window, int size)
+        {
+            window = new float[size];
+            BlackmanHarris(window, 0.40217, 0.49703, 0.09892, 0.00188);
+        }
+
+        private void BlackmanHarris92(out float[] window, int size)
+        {
+            window = new float[size];
+            BlackmanHarris(window, 0.35875, 0.48829, 0.14128, 0.01168);
+        }
+
+        private void NormalizeWindow()
+        {
+            float sum = 0f;
+            for(int i = 0; i < this.window.Length; i++)
+            {
+                sum += Math.Abs(this.window[i]);
+            }
+
+            if (sum == 0)
+            {
+                return;
+            }
+
+            float scale = 2f / sum;
+            for(int i = 0; i < this.window.Length; i++)
+            {
+                this.window[i] *= scale;
+            }
+        }
     }
 
     public enum WindowingType
@@ -167,6 +249,10 @@ namespace ConvertHero.AudioFileHelpers
         Hann,
         HannNSGCQ,
         Triangular,
-        Square
+        Square,
+        BlackmanHarris62,
+        BlackmanHarris70,
+        BlackmanHarris74,
+        BlackmanHarris92
     }
 }

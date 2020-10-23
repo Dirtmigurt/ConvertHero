@@ -124,6 +124,27 @@
             return n;
         }
 
+        public float[] ReadAll(int maxSamples = int.MaxValue)
+        {
+            List<float> samples = new List<float>();
+            float[] buffer = new float[(1 << 14)];
+            while(true)
+            {
+                int count = this.SampleProvider.Read(buffer, 0, buffer.Length);
+                for(int i = 0; i < count; i++)
+                {
+                    samples.Add(buffer[i]);
+                }
+
+                if (count == 0 || samples.Count >= maxSamples)
+                {
+                    break;
+                }
+            }
+
+            return samples.ToArray();
+        }
+
         public long TotalFrames(int frameRate)
         {
             return (long)(this.Reader.TotalTime.TotalSeconds * frameRate);

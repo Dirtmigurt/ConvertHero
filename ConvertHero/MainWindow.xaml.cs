@@ -154,8 +154,6 @@
                 SignalNormalization.MedianCenterNormalize(hfcValues);
                 SignalNormalization.MedianCenterNormalize(complexValues);
                 SignalNormalization.MedianCenterNormalize(melFluxValues);
-                PeakDetection peakDetector = new PeakDetection();
-                novelty = peakDetector.Compute(novelty.ToArray());
                 SignalNormalization.MedianCenterNormalize(novelty);
 
 
@@ -178,7 +176,6 @@
                 }
 
                 SignalNormalization.MedianCenterNormalize(superFeature);
-                superFeature = peakDetector.Compute(superFeature).ToArray();
 
                 int chartResolution = 480; // 480 ticks per quarter note =
                 int beatsPerMinute = 120;  // There are BPM * ChartResolution ticks/minute or BPM * ChartResolution / 60 ticks/second
@@ -600,7 +597,7 @@
                 using (StreamWriter writer = new StreamWriter(Path.ChangeExtension(MidiFileName, ".chart")))
                 {
                     // Write SONG section
-                    writer.WriteLine(string.Format(Properties.Resources.SongSection, ChartResolution, Path.GetFileName(MidiFileName)));
+                    writer.WriteLine(string.Format(Properties.Resources.SongSection, 192, Path.GetFileName(MidiFileName)));
 
                     // Write SYNC section
                     writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", SyncTrack.Select(s => s.ToString()))));
