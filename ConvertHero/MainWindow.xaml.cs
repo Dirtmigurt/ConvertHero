@@ -14,6 +14,11 @@
     using System;
     using System.IO;
     using Melanchall.DryWetMidi.Devices;
+    using ConvertHero.AudioFileHelpers;
+    using System.Threading.Tasks;
+    using System.Threading;
+    using System.Windows.Media;
+    using System.ComponentModel;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -34,6 +39,16 @@
         /// The file name of the Midi File.
         /// </summary>
         private static string MidiFileName;
+
+        /// <summary>
+        /// The file name of the Audio File.
+        /// </summary>
+        private static string AudioFileName;
+
+        /// <summary>
+        /// Gets or sets a task that is responsible for running the audio conversion work.
+        /// </summary>
+        private Task ConvertAudioTask { get; set; }
 
         /// <summary>
         /// MainWindow Constructor.
@@ -439,7 +454,7 @@
                 using (StreamWriter writer = new StreamWriter(Path.ChangeExtension(MidiFileName, ".chart")))
                 {
                     // Write SONG section
-                    writer.WriteLine(string.Format(Properties.Resources.SongSection, ChartResolution, Path.GetFileName(MidiFileName)));
+                    writer.WriteLine(string.Format(Properties.Resources.SongSection, 192, Path.GetFileName(MidiFileName)));
 
                     // Write SYNC section
                     writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", SyncTrack.Select(s => s.ToString()))));
@@ -676,13 +691,289 @@
 
         /// <summary>
         /// Callback function for when the window loads.
-        /// Currentl empty but used for debug/testing.
+        /// Currently empty but used for debug/testing.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Can use this for test code/debugging
+            ;
+        }
+
+        /// <summary>
+        /// Callback function for when the Open Audio button is clicked.
+        /// </summary>
+        /// <param name="sender">
+        /// The sender
+        /// </param>
+        /// <param name="e">
+        /// The event arguments.
+        /// </param>
+        private void BtnOpenAudio_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog fileDialog = new OpenFileDialog();
+            fileDialog.Filter = "Audio File|*.mp3;*.ogg;*.wav";
+            DialogResult result = fileDialog.ShowDialog();
+            switch (result)
+            {
+                case System.Windows.Forms.DialogResult.OK:
+                    string file = fileDialog.FileName;
+                    this.AudioFileTextBox.Text = file;
+                    AudioFileName = file;
+                    this.convertAudioButton.IsEnabled = true;
+                    break;
+                case System.Windows.Forms.DialogResult.Cancel:
+                default:
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Callback function for when the Convert Audio button is clicked.
+        /// This method validates the min/max tempo text boxes and runs an audio conversion task in the thread pool.
+        /// </summary>
+        /// <param name="sender">
+        /// The sender.
+        /// </param>
+        /// <param name="e">
+        /// The event arguments.
+        /// </param>
+        private void BtnConvertAudio_Click(object sender, RoutedEventArgs e)
+        {
+            // Validate the tempo text boxes contain number and they are normal
+            string minText = this.MinTempoTextBox.Text;
+            string maxText = this.MaxTempoTextBox.Text;
+            bool parseFailure = false;
+            if (!float.TryParse(minText, out float minTempo))
+            {
+                this.MinTempoTextBox.BorderBrush = Brushes.Red;
+                this.MinTempoLabel.Content = $"Minimum Tempo - Could not parse to number.";
+                parseFailure = true;
+            }
+            
+            if (!float.TryParse(maxText, out float maxTempo))
+            {
+                this.MaxTempoTextBox.BorderBrush = Brushes.Red;
+                this.MaxTempoLabel.Content = $"Maximum Tempo - Could not parse to number.";
+                parseFailure = true;
+            }
+
+            if (parseFailure)
+            {
+                return;
+            }
+
+            if (maxTempo <= minTempo)
+            {
+                this.MinTempoTextBox.BorderBrush = Brushes.Red;
+                this.MinTempoLabel.Content = $"Minimum Tempo - Must be larger than Maximum Tempo.";
+                this.MaxTempoTextBox.BorderBrush = Brushes.Red;
+                this.MaxTempoLabel.Content = $"Maximum Tempo - Must be smaller than Minimum Tempo.";
+            }
+            else if (minTempo < 40)
+            {
+                this.MinTempoTextBox.BorderBrush = Brushes.Red;
+                this.MinTempoLabel.Content = $"Minimum Tempo - Must be larger than 40 BPM.";
+            }
+            else if (maxTempo > 300)
+            {
+                this.MaxTempoTextBox.BorderBrush = Brushes.Red;
+                this.MaxTempoLabel.Content = $"Maximum Tempo - Must be less than 300 BPM";
+            }
+            else
+            {
+                this.MaxTempoTextBox.BorderBrush = Brushes.Black;
+                this.MinTempoTextBox.BorderBrush = Brushes.Black;
+                this.MaxTempoLabel.Content = $"Maximum Tempo";
+                this.MinTempoLabel.Content = $"Minimum Tempo";
+            }
+
+            this.convertAudioButton.IsEnabled = false;
+            // Trigger some async work and send a reference to the Progress bar/label with it to report status
+            this.ConvertAudioTask = Task.Run(() => ConvertAudioFile(minTempo, maxTempo)).ContinueWith((t) => UpdateConvertButton(true));
+        }
+
+        /// <summary>
+        /// This method is responsible for all of the computation required to generate the
+        /// tempo track for an audio file. 
+        /// 
+        /// This method should NEVER be run on the UI thread as it takes a few seconds to run.
+        /// </summary>
+        /// <param name="minTempo">
+        /// The minimum tempo that the tempo detection should use as a hint.
+        /// The output tempo may be less than this, this is only a suggestion of where to look.
+        /// </param>
+        /// <param name="maxTempo">
+        /// The maximum tempo that the tempo detection shoudl use as a hint.
+        /// The output tempo may be higher than this, this is only a suggestion of where to look.
+        /// </param>
+        private void ConvertAudioFile(float minTempo, float maxTempo)
+        {
+            float tempMinTempo = minTempo;
+            float tempMaxTempo = maxTempo;
+
+            // BPM Estimation gets pretty wonky when looking for > 200 BPM, so instead check for half the BPM and we can interpolate later.
+            if (maxTempo > 200)
+            {
+                tempMaxTempo /= 2;
+                tempMinTempo = Math.Max(40, tempMinTempo / 2);
+            }
+
+            using (SampleReader reader = new SampleReader(AudioFileName, 50, (1 << 14)))
+            {
+                if (reader.SampleRate != 44100)
+                {
+                    System.Windows.MessageBox.Show($"Unsupported SampleRate = {reader.SampleRate} Hz. Audio file sample rate must equal 44100 Hz. Please resample the audio file using Audacity or something similar.", "Invalid Sample Rate", MessageBoxButton.OK, MessageBoxImage.Error);
+                    UpdateProgressBar("Skipped", 0);
+                    return;
+                }
+
+                UpdateProgressBar("Reading audio file...", 1);
+                float[] signal = reader.ReadAll();
+                RhythmExtractor extractor = new RhythmExtractor(reader.SampleRate, tempMinTempo, tempMaxTempo);
+                (float bpm, float[] ticks, float confidence, float[] estimates, float[] bpmIntervals) = extractor.Compute(signal, UpdateProgressBar);
+                (ticks, bpm) = this.PostProcessTicks(ticks, bpm, minTempo, maxTempo);
+
+                UpdateProgressBar("Building .chart File...", 1);
+                List<SyncEvent> syncTrack = new List<SyncEvent> { new SyncEvent(0, 1, 4) };
+                int currentTick = 0;
+                float currentTime = 0;
+                for (int i = 0; i < ticks.Length; i++)
+                {
+                    float targetTime = ticks[i];
+
+                    // What BPM value will make 192 ticks == tick - currentTime
+                    float deltaT = targetTime - currentTime;
+                    double b = 60f / deltaT;
+                    if (i == 0 || Math.Abs(b - syncTrack[syncTrack.Count - 1].BeatsPerMinute) >= 0.01)
+                    {
+                        // Add the event if its the first event or the BPM changed.
+                        syncTrack.Add(new SyncEvent(currentTick, b));
+                    }
+
+                    currentTick = 192 * (i + 1);
+                    currentTime = targetTime;
+                }
+
+                // Write a .chart file with the sync track filled out
+                string outputFile = Path.ChangeExtension(AudioFileName, ".chart");
+                using (StreamWriter writer = new StreamWriter(outputFile))
+                {
+                    // Write SONG section
+                    writer.WriteLine(string.Format(Properties.Resources.SongSection, 192, Path.GetFileName(AudioFileName)));
+
+                    // Write SYNC section
+                    writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", syncTrack.Select(s => s.ToString()))));
+                }
+
+                UpdateProgressBar($"Complete -> {outputFile}", 100);
+            }
+        }
+
+        /// <summary>
+        /// Clean up starting ticks that can appear very close together.
+        /// If an integer multiple of the computed BPM falls into the desired BPM range, then interpolate/remove tick values
+        /// to meet that BPM target.
+        /// For example if a compute BPM of 90 is returned but the user wants 160 <= BPM <=200 then we can 2x that BPM to meet their needs.
+        /// This is easily done by adding a single new tick in between each computed tick.
+        /// </summary>
+        /// <param name="ticks">
+        /// The ticks that were computed from onset features.
+        /// </param>
+        /// <param name="bpm">
+        /// The average BPM from the ticks in the 'ticks' parameter.
+        /// </param>
+        /// <param name="minTempo">
+        /// The minimum tempo desired by the user.
+        /// </param>
+        /// <param name="maxTempo">
+        /// The maximum tempo desired by the user.
+        /// </param>
+        /// <returns>
+        /// A new tick array without the close together starting ticks.
+        /// The new tick array may also have ticks added/or removed to change the BPM to an integer multiple.
+        /// </returns>
+        private (float[] newTicks, float newBmp) PostProcessTicks(float[] ticks, float bpm, float minTempo, float maxTempo)
+        {
+            List<float> goodTicks = new List<float>(ticks);
+            while(60f / goodTicks[0] > (2  * bpm))
+            {
+                    goodTicks.RemoveAt(0);
+            }
+
+            int multiplier = 1;
+            while(bpm * (multiplier + 1) < maxTempo)
+            {
+                multiplier++;
+            }
+
+            if (multiplier > 1 && bpm * multiplier > minTempo)
+            {
+                // interpolate ticks with (multiplier-1) intermediate ticks
+                ticks = goodTicks.ToArray();
+                for(int i = 0; i < ticks.Length - 1; i++)
+                {
+                    float start = ticks[i];
+                    float end = ticks[i + 1];
+                    float step = (end - start) / multiplier;
+                    for(int j = 1; j < multiplier; j++)
+                    {
+                        goodTicks.Add(start + (j * step));
+                    }
+                }
+
+                goodTicks.Sort();
+                return (goodTicks.ToArray(), bpm * multiplier);
+            }
+
+            int diviser = 1;
+            while(bpm / (diviser + 1f) > minTempo)
+            {
+                diviser++;
+            }
+
+            if (diviser > 1 && bpm / diviser < maxTempo)
+            {
+                // keep 1 element, remove diviser-1 
+                int i = 0;
+                while(i < goodTicks.Count)
+                {
+                    // remove goodTicks[i+1] ... goodTicks[i+diviser-1]
+                    for(int j = i + 1; j <= i + diviser - 1; j++)
+                    {
+                        goodTicks.RemoveAt(j);
+                    }
+
+                    i++;
+                }
+
+                return (goodTicks.ToArray(), bpm / diviser);
+            }
+
+            return (goodTicks.ToArray(), bpm);
+        }
+
+        /// <summary>
+        /// Method used for the safe access of UI elements from background threads.
+        /// </summary>
+        /// <param name="enabled"></param>
+        private void UpdateConvertButton(bool enabled = false)
+        {
+            Dispatcher.Invoke(() => this.convertAudioButton.IsEnabled = enabled);
+        }
+
+        /// <summary>
+        /// Method used for the safe access of UI elements from background thread.
+        /// </summary>
+        /// <param name="label"></param>
+        /// <param name="progressPercent"></param>
+        private void UpdateProgressBar(string label, double progressPercent)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                this.ConversionProgress.Value = progressPercent;
+                this.StatusText.Text = label;
+            });
         }
     }
 }

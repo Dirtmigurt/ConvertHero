@@ -23,6 +23,11 @@
         public long Sustain = -1;
 
         /// <summary>
+        /// The number of seconds that this note should be held for.
+        /// </summary>
+        public double SustainSeconds = 0.0;
+
+        /// <summary>
         /// Chord indicators the number of notes that land on the same tick (for a guitar a note=1, chords=2+)
         /// </summary>
         public int Chord = 1;
@@ -98,6 +103,12 @@
             }
 
             if (!int.TryParse(tokens[3], out int type))
+            {
+                return false;
+            }
+
+            // Do not successfully parse invalid types or Force/Tap types.
+            if (type < 0 || type == 5 || type == 6 || type > 7)
             {
                 return false;
             }

@@ -116,10 +116,10 @@
             RiseAndFallMapper(this.Notes, 5);
 
             // Build the chords back out since they were stripped into single notes
-            RebuildChords();
+            //RebuildChords();
 
             // Fix sustains, since midi files sustain ALL notes
-            FixSustains();
+            //FixSustains();
         }
 
         /// <summary>
