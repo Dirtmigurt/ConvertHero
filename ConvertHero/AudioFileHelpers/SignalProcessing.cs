@@ -1,14 +1,24 @@
-﻿using Accord.Audio;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using Accord.Audio;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+
+    /// <summary>
+    /// Some test methods using FFT
+    /// </summary>
     public static class SignalProcessing
     {
+        /// <summary>
+        /// Compute the MelPowerSpectrum of an audio file.
+        /// </summary>
+        /// <param name="fileName">
+        /// The name of the file to compute the spectrum for.
+        /// </param>
+        /// <returns>
+        /// The MelPowerSpectrum.
+        /// </returns>
         public static float[,] GetMelPowerSpectrogram(string fileName)
         {
             List<float> sampleList = new List<float>();
@@ -51,6 +61,12 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Converts a power spectrum to note powers.
+        /// </summary>
+        /// <param name="fftPowerSpectrum"></param>
+        /// <param name="bandwidth"></param>
+        /// <returns></returns>
         private static float[] GetNotePower(double[] fftPowerSpectrum, double bandwidth)
         {
             // A4 = 440 HZ

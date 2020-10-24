@@ -1,15 +1,26 @@
-﻿using ConvertHero.Models;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using ConvertHero.Models;
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+
+    /// <summary>
+    /// Class that is capable of interpreting the .chart file format used by CloneHero.
+    /// </summary>
     public static class ChartFileReader
     {
+        /// <summary>
+        /// Create a 2d array of note events from the specified .chart file.
+        /// </summary>
+        /// <param name="chartFile">
+        /// The input chart file.
+        /// </param>
+        /// <param name="frameRate">
+        /// The frame rate of the output.
+        /// </param>
+        /// <returns></returns>
         public static float[,] GetChartFrames(string chartFile, int frameRate)
         {
             int chartResolution = 192;

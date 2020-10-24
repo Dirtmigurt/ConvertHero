@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
     public class SpectralCentroid
     {
+        /// <summary>
+        /// Compute the spectral centroid of a spectrum
+        /// </summary>
+        /// <param name="spectrum">The input spectrum</param>
+        /// <param name="sampleRate">The sample rate of the spectrum</param>
+        /// <returns></returns>
         public static float Compute(float[] spectrum, int sampleRate)
         {
             float hertzPerBin = (sampleRate / 2.0f) / (spectrum.Length - 1f);

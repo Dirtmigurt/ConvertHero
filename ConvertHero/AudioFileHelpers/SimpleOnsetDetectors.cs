@@ -1,12 +1,8 @@
-﻿using MathNet.Numerics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using MathNet.Numerics;
+    using System;
+
     public enum OnsetAlgorithms
     {
         HighFrequencyContent,
@@ -19,8 +15,14 @@ namespace ConvertHero.AudioFileHelpers
 
     public class SimpleOnsetDetectors
     {
+        /// <summary>
+        /// The audio file sample rate
+        /// </summary>
         private float sampleRate;
 
+        /// <summary>
+        /// Are we on the first frame?
+        /// </summary>
         private bool firstFrame = true;
 
         // USED FOR RMS ONSET DETECTION
@@ -36,12 +38,30 @@ namespace ConvertHero.AudioFileHelpers
         private float[] complexMinus2 = null;
         private float[] magMinus1 = null;
 
+        /// <summary>
+        /// Helper object that computes high frequency content of a spectrum.
+        /// </summary>
         HighFrequencyContent hfc;
 
+        /// <summary>
+        /// Helper object that computes the flux of a spectrum
+        /// </summary>
         Flux flux;
+
+        /// <summary>
+        /// Helper object that computes the flux of a spectrum
+        /// </summary>
         Flux melFlux;
+
+        /// <summary>
+        /// Helper object that computes the mel bands of a spectrum.
+        /// </summary>
         MelBands melBands;
         
+        /// <summary>
+        /// Initializes a new instance of the SimpleOnsetDetectors class.
+        /// </summary>
+        /// <param name="sampleRate">The sample rate of the audio signal.</param>
         public SimpleOnsetDetectors(int sampleRate)
         {
             this.hfc = new HighFrequencyContent(HFCTechnique.Brossier, sampleRate);
@@ -50,11 +70,22 @@ namespace ConvertHero.AudioFileHelpers
             this.melFlux = new Flux(FluxNormalizationMethod.L1, true);
         }
 
+        /// <summary>
+        /// Compute the high frequency content of the spectrum.
+        /// </summary>
+        /// <param name="spectrum">The input spectrum.</param>
+        /// <returns>The high frequency content.</returns>
         public float ComputeHFC(float[] spectrum)
         {
             return this.hfc.Compute(spectrum);
         }
 
+        /// <summary>
+        /// Compute the difference in complex phase between the current spectrum and the previous ones.
+        /// </summary>
+        /// <param name="magnitude">The amplitude of the spectrum</param>
+        /// <param name="phase">The phase component of the spectrum</param>
+        /// <returns></returns>
         public float ComputeComplexPhase(float[] magnitude, float[] phase)
         {
             if (this.phaseMinus1 == null || this.phaseMinus2 == null || phase.Length != this.phaseMinus1.Length || phase.Length != phaseMinus2.Length)
@@ -76,6 +107,14 @@ namespace ConvertHero.AudioFileHelpers
             return val;
         }
 
+        /// <summary>
+        /// Compute the difference in complex between the current spectrum and the preivious ones.
+        /// </summary>
+        /// <param name="magnitude">The magnitude of the spectrum.</param>
+        /// <param name="phase">The phase of the spectrum.</param>
+        /// <returns>
+        /// The complex difference in the spectrum.
+        /// </returns>
         public float ComputeComplex(float[] magnitude, float[] phase)
         {
             if (this.complexMinus1 == null || this.complexMinus2 == null || phase.Length != this.complexMinus1.Length || phase.Length != this.complexMinus2.Length)
@@ -100,11 +139,21 @@ namespace ConvertHero.AudioFileHelpers
             return val;
         }
 
+        /// <summary>
+        /// Compute the spectral flux.
+        /// </summary>
+        /// <param name="spectrum"></param>
+        /// <returns></returns>
         public float ComputeFlux(float[] spectrum)
         {
             return this.flux.Compute(spectrum);
         }
 
+        /// <summary>
+        /// Compute the spectral flux but using mel warping.
+        /// </summary>
+        /// <param name="spectrum"></param>
+        /// <returns></returns>
         public float ComputeMelFlux(float[] spectrum)
         {
             float[] bands = this.melBands.Compute(spectrum);
@@ -124,6 +173,11 @@ namespace ConvertHero.AudioFileHelpers
             return val;
         }
 
+        /// <summary>
+        /// Compute the RMS energy of the signal.
+        /// </summary>
+        /// <param name="spectrum"></param>
+        /// <returns></returns>
         public float ComputeRms(float[] spectrum)
         {
             float rms = 0;

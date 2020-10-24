@@ -1,27 +1,57 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+    using System.Linq;
+
+    /// <summary>
+    /// This algorithm implements a maximum filter for 1d signal using van Herk/Gil-Werman (HGW) algorithm.
+    /// </summary>
     public class MaxFilter
     {
+        /// <summary>
+        /// The width of the filter
+        /// </summary>
         private int width = 0;
 
+        /// <summary>
+        /// Half of the width of the filter.
+        /// </summary>
         private int halfWidth = 0;
 
+        /// <summary>
+        /// Whether or not to use causal filter.
+        /// </summary>
         private bool causal = false;
 
+        /// <summary>
+        /// What index the buffer fill starts at.
+        /// </summary>
         private int bufferFillIndex = 0;
 
+        /// <summary>
+        /// Whether or not the buffer is filled.
+        /// </summary>
         private bool filledBuffer = false;
 
+        /// <summary>
+        /// Holds the current max.
+        /// </summary>
         private float currentMax = 0;
 
+        /// <summary>
+        /// The buffer array for the filter.
+        /// </summary>
         private float[] buffer;
 
+        /// <summary>
+        /// Initialize a new instance of the MaxFilter class.
+        /// </summary>
+        /// <param name="width">
+        /// the window size, has to be odd if the window is centered
+        /// </param>
+        /// <param name="causal">
+        /// use casual filter (window is behind current element otherwise it is centered around)
+        /// </param>
         public MaxFilter(int width, bool causal = false)
         {
             this.width = width;
@@ -35,6 +65,11 @@ namespace ConvertHero.AudioFileHelpers
             this.bufferFillIndex = causal ? 0 : this.halfWidth;
         }
 
+        /// <summary>
+        /// Compute the filter on the input.
+        /// </summary>
+        /// <param name="input">The input signal</param>
+        /// <returns>The filtered output.</returns>
         public float[] Filter(float[] input)
         {
             int size = input.Length;
@@ -81,6 +116,9 @@ namespace ConvertHero.AudioFileHelpers
             return filtered;
         }
 
+        /// <summary>
+        /// Reset the filter.
+        /// </summary>
         public void Reset()
         {
             this.buffer = null;

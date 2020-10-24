@@ -1,26 +1,74 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+
     public class PitchSalienceFunction
     {
+        /// <summary>
+        /// salience function bin resolution [cents]
+        /// </summary>
         float binResolution;
+
+        /// <summary>
+        /// the reference frequency for Hertz to cent convertion [Hz], corresponding to the 0th cent bin
+        /// </summary>
         float referenceFrequency;
+
+        /// <summary>
+        /// peak magnitude threshold (maximum allowed difference from the highest peak in dBs)
+        /// </summary>
         float magnitudeThreshold;
+
+        /// <summary>
+        /// magnitude compression parameter (=0 for maximum compression, =1 for no compression)
+        /// </summary>
         float magnitudeCompression;
+
+        /// <summary>
+        /// number of considered harmonics
+        /// </summary>
         int numberHarmonics;
+
+        /// <summary>
+        /// harmonic weighting parameter (weight decay ratio between two consequent harmonics, =1 for no decay)
+        /// </summary>
         float harmonicWeight;
 
+        /// <summary>
+        /// precomputed vector of weights for n-th harmonics
+        /// </summary>
         List<float> harmonicWeights;
+
+        /// <summary>
+        /// precomputed vector of weights for salience propagation to nearest bins
+        /// </summary>
         List<float> nearestBinsWeights;
+
+        /// <summary>
+        /// 
+        /// </summary>
         int numberBins;
+
+        /// <summary>
+        /// number of bins in a semitone
+        /// </summary>
         int binsInSemitone;
+
+        /// <summary>
+        /// number of bins in an octave
+        /// </summary>
         float binsInOctave;
+
+        /// <summary>
+        /// precomputed addition term used for Hz to cent bin conversion
+        /// </summary>
         float referenceTerm;
+
+        /// <summary>
+        /// fraction of maximum magnitude in frame corresponding to _magnitudeCompression difference in dBs
+        /// </summary>
         float magnitudeThresholdLinear;
 
         /// <summary>
@@ -58,7 +106,13 @@ namespace ConvertHero.AudioFileHelpers
         /// <param name="harmonicWeight">
         /// harmonic weighting parameter (weight decay ratio between two consequent harmonics, =1 for no decay)
         /// </param>
-        public PitchSalienceFunction(float binResolution = 10, float referenceFrequency = 55, float magnitudeThreshold = 40, float magnitudeCompression = 1, int numberHarmonics = 20, float harmonicWeight = 0.8f)
+        public PitchSalienceFunction(
+            float binResolution = 10, 
+            float referenceFrequency = 55, 
+            float magnitudeThreshold = 40, 
+            float magnitudeCompression = 1, 
+            int numberHarmonics = 20, 
+            float harmonicWeight = 0.8f)
         {
             this.referenceFrequency = referenceFrequency;
             this.binResolution = binResolution;
@@ -158,12 +212,21 @@ namespace ConvertHero.AudioFileHelpers
             return salienceFunction;
         }
 
+        /// <summary>
+        ///  +0.5 term is used instead of +1 (as in [1]) to center 0th bin to 55Hz
+        ///  formula: floor(1200 * log2(frequency / _referenceFrequency) / _binResolution + 0.5)
+        ///     --> 1200 * (log2(frequency) - log2(_referenceFrequency)) / _binResolution + 0.5
+        ///     --> 1200 * log2(frequency) / _binResolution + (0.5 - 1200 * log2(_referenceFrequency) / _binResolution)
+        /// </summary>
+        /// <param name="frequency">
+        /// Input frequency
+        /// </param>
+        /// <returns>
+        /// Corresponding cent bin.
+        /// </returns>
         private int FrequencyToCentBin(float frequency)
         {
-            // +0.5 term is used instead of +1 (as in [1]) to center 0th bin to 55Hz
-            // formula: floor(1200 * log2(frequency / _referenceFrequency) / _binResolution + 0.5)
-            //    --> 1200 * (log2(frequency) - log2(_referenceFrequency)) / _binResolution + 0.5
-            //    --> 1200 * log2(frequency) / _binResolution + (0.5 - 1200 * log2(_referenceFrequency) / _binResolution)
+
             return (int)Math.Floor(this.binsInOctave * MathHelpers.Log2(frequency) + this.referenceTerm);
         }
     }

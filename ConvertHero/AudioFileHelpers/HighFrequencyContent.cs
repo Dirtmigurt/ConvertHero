@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    /// <summary>
+    /// The supported HFC Techniques.
+    /// </summary>
     public enum HFCTechnique
     {
         Masri,
@@ -13,13 +10,40 @@ namespace ConvertHero.AudioFileHelpers
         Brossier
     }
 
+    /// <summary>
+    /// Class for computing the high frequency content of a spectrum
+    /// </summary>
     public class HighFrequencyContent
     {
+        /// <summary>
+        /// What technique should be used to compute the HFC?
+        /// </summary>
         private HFCTechnique type;
+
+        /// <summary>
+        /// The sample rate of the signal.
+        /// </summary>
         private int sampleRate;
+
+        /// <summary>
+        /// The highest frequency to include in the computation.
+        /// </summary>
         private double cutoffFrequency;
 
-        // 7040 == A8 which is on the upper bound of useful musical notes.
+        /// <summary>
+        /// Initializes a new instance of the HighFrequencyContent class.
+        /// </summary>
+        /// <param name="type">
+        /// What HFC Technique should be used.
+        /// </param>
+        /// <param name="sampleRate">
+        /// The sample rate of the signal.
+        /// </param>
+        /// <param name="cutoffFrequency">
+        /// The highest frequency to include in the computation
+        /// 7040 == A8 which is on the upper bound of useful musical notes.
+        /// </param>
+
         public HighFrequencyContent(HFCTechnique type, int sampleRate, double cutoffFrequency = 7040)
         {
             this.type = type;
@@ -27,6 +51,15 @@ namespace ConvertHero.AudioFileHelpers
             this.cutoffFrequency = cutoffFrequency;
         }
 
+        /// <summary>
+        /// Compute how much high frequency content is present in the input spectrum.
+        /// </summary>
+        /// <param name="spectrum">
+        /// The input spectrum
+        /// </param>
+        /// <returns>
+        /// The amount of high frequency content in the spectrum.
+        /// </returns>
         public float Compute(float[] spectrum)
         {
             float hertzPerBin = 0;

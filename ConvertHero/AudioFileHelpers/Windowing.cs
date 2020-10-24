@@ -1,20 +1,45 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+
+    /// <summary>
+    /// Helper class that allows windowing a signal with many popular windowing functions.
+    /// The supported windowing functions are enumerated in the WindowingType enum.
+    /// </summary>
     public class Windowing
     {
+        /// <summary>
+        /// The array that holds the actual window.
+        /// </summary>
         private float[] window = null;
+
+        /// <summary>
+        /// The type of window.
+        /// </summary>
         private WindowingType type;
+        
+        /// <summary>
+        /// How much zero padding is present on the signal.
+        /// </summary>
         private int zeroPadding = 0;
+
+        /// <summary>
+        /// Causes second half of window to be equal to first half of window.
+        /// </summary>
         private bool zeroPhase = false;
+
+        /// <summary>
+        /// Normalize the window so the area under the window == 1.
+        /// </summary>
         private bool normalized = false;
 
+        /// <summary>
+        /// Initialize a new instance of the Windowing class.
+        /// </summary>
+        /// <param name="type">The type of window</param>
+        /// <param name="zeroPadding">How much zero padding is present</param>
+        /// <param name="zeroPhase">Should the window be zero phase</param>
+        /// <param name="normalized">Should the window be normalized.</param>
         public Windowing(WindowingType type, int zeroPadding = 0, bool zeroPhase = false, bool normalized = false)
         {
             this.type = type;
@@ -23,6 +48,12 @@ namespace ConvertHero.AudioFileHelpers
             this.normalized = false;
         }
 
+        /// <summary>
+        /// Window the signal.
+        /// </summary>
+        /// <param name="signal">
+        /// The input signal.
+        /// </param>
         public void Compute(ref float[] signal)
         {
             if (signal == null || signal.Length == 0)
@@ -80,6 +111,12 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Resize the signal.
+        /// </summary>
+        /// <param name="arr">input array</param>
+        /// <param name="newSize">new size of the array</param>
+        /// <returns></returns>
         private static float[] ResizeSignal(float[] arr, int newSize)
         {
             float[] newArr = new float[newSize];
@@ -91,6 +128,13 @@ namespace ConvertHero.AudioFileHelpers
             return newArr;
         }
 
+        /// <summary>
+        /// Generate the actual window depending on the type selected.
+        /// https://en.wikipedia.org/wiki/Window_function#A_list_of_window_functions
+        /// </summary>
+        /// <param name="window">The actual window values</param>
+        /// <param name="size">the size of the window</param>
+        /// <param name="type">the type of the window.</param>
         public void GenerateWindow(out float[] window, int size, WindowingType type)
         {
             switch(type)
@@ -131,6 +175,11 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Create a hamming window
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="size"></param>
         private static void Hamming(out float[] window, int size)
         {
             window = new float[size];
@@ -140,6 +189,11 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Create a Hann window
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="size"></param>
         private static void Hann(out float[] window, int size)
         {
             window = new float[size];
@@ -149,6 +203,11 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Create a HannNSGCQ window
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="size"></param>
         private static void HannNSGCQ(out float[] window, int size)
         {
             window = new float[size];
@@ -162,6 +221,11 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Create a triagle window
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="size"></param>
         private static void Triangular(out float[] window, int size)
         {
             window = new float[size];
@@ -171,6 +235,11 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Create a square window.
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="size"></param>
         private static void Square(out float[] window, int size)
         {
             window = new float[size];
@@ -180,6 +249,14 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Create a generalized blackman harris window.
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="a0"></param>
+        /// <param name="a1"></param>
+        /// <param name="a2"></param>
+        /// <param name="a3"></param>
         private static void BlackmanHarris(float[] window, double a0 = 0, double a1 = 0, double a2 = 0, double a3 = 0)
         {
             int size = window.Length;
@@ -198,30 +275,53 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Create a blackman harris 62 window
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="size"></param>
         private static void BlackmanHarris62(out float[] window, int size)
         {
             window = new float[size];
             BlackmanHarris(window, 0.44959, 0.49364, 0.05677);
         }
 
+        /// <summary>
+        /// Create a blackman harris 70 window
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="size"></param>
         private void BlackmanHarris70(out float[] window, int size)
         {
             window = new float[size];
             BlackmanHarris(window, 0.42323, 0.49755, 0.07922);
         }
 
+        /// <summary>
+        /// Create a blackman harris 74 window
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="size"></param>
         private void BlackmanHarris74(out float[] window, int size)
         {
             window = new float[size];
             BlackmanHarris(window, 0.40217, 0.49703, 0.09892, 0.00188);
         }
 
+        /// <summary>
+        /// Create a blackman harris 92 window
+        /// </summary>
+        /// <param name="window"></param>
+        /// <param name="size"></param>
         private void BlackmanHarris92(out float[] window, int size)
         {
             window = new float[size];
             BlackmanHarris(window, 0.35875, 0.48829, 0.14128, 0.01168);
         }
 
+        /// <summary>
+        /// Normalize a window so the area under it sums to 1.
+        /// </summary>
         private void NormalizeWindow()
         {
             float sum = 0f;
@@ -243,6 +343,9 @@ namespace ConvertHero.AudioFileHelpers
         }
     }
 
+    /// <summary>
+    /// Supported windowing types.
+    /// </summary>
     public enum WindowingType
     {
         Hamming,

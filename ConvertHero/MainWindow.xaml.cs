@@ -16,8 +16,9 @@
     using Melanchall.DryWetMidi.Devices;
     using ConvertHero.AudioFileHelpers;
     using System.Threading.Tasks;
-    using ConvertHero.CNTKModels;
-    using CNTK;
+    using System.Threading;
+    using System.Windows.Media;
+    using System.ComponentModel;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -38,6 +39,16 @@
         /// The file name of the Midi File.
         /// </summary>
         private static string MidiFileName;
+
+        /// <summary>
+        /// The file name of the Audio File.
+        /// </summary>
+        private static string AudioFileName;
+
+        /// <summary>
+        /// Gets or sets a task that is responsible for running the audio conversion work.
+        /// </summary>
+        private Task ConvertAudioTask { get; set; }
 
         /// <summary>
         /// MainWindow Constructor.
@@ -95,160 +106,6 @@
                 default:
                     break;
             }
-        }
-
-        private void ProcessMp3File(string file)
-        {
-            // test audio file
-            int frameRate = 50;
-            using (AudioFileHelpers.SampleReader reader = new AudioFileHelpers.SampleReader(file, frameRate, 2048))
-            {
-                float[] buffer;
-                Windowing hannWindow = new Windowing(WindowingType.Hann);
-                SimpleOnsetDetectors onsets = new SimpleOnsetDetectors(reader.SampleRate);
-                MelBands melBands = new MelBands(40, reader.SampleRate);
-                List<float[]> melFrames = new List<float[]>();
-                List<float[]> triangleBandFrames = new List<float[]>();
-
-                // Lists to store onset detection values for each frame
-                List<float> superFluxValues = new List<float>();
-                List<float> hfcValues = new List<float>();
-                List<float> complexValues = new List<float>();
-                List<float> complexPhaseValues = new List<float>();
-                List<float> fluxValues = new List<float>();
-                List<float> melFluxValues = new List<float>();
-                List<float> rmsValues = new List<float>();
-                long currentFrame = 0;
-                long maxFrame = reader.TotalFrames(frameRate);
-                while (reader.Read(out buffer) > 0)
-                {
-                    // run buffer through Hann windowing
-                    hannWindow.Compute(ref buffer);
-
-                    // calculate the frequency magnitues of the hann window
-                    (float[] mag, float[] phase) = CartesianToPolar.ConvertComplexToPolar(Spectrum.ComputeFFT(buffer, reader.SampleRate));
-
-                    // Calculate the simple onset detection functions
-                    hfcValues.Add(onsets.ComputeHFC(mag));
-                    complexValues.Add(onsets.ComputeComplex(mag, phase));
-                    complexPhaseValues.Add(onsets.ComputeComplexPhase(mag, phase));
-                    fluxValues.Add(onsets.ComputeFlux(mag));
-                    melFluxValues.Add(onsets.ComputeMelFlux(mag));
-                    rmsValues.Add(onsets.ComputeRms(mag));
-                    melFrames.Add(melBands.Compute(mag));
-
-                    // report progress
-                    if(currentFrame % 10 == 0)
-                    {
-                        this.ConversionProgress.Dispatcher.Invoke(() => this.ConversionProgress.Value = 100.0 * currentFrame / maxFrame);
-                    }
-                    
-                    currentFrame++;
-                }
-
-                NoveltyCurve ncurve = new NoveltyCurve(WeightType.Linear, frameRate, false);
-                List<float> novelty = ncurve.ComputeAll(melFrames).ToList();
-
-                // NORMALIZE ALL OF THE ONSET FUNCTIONS
-                // USEFUL Detectors = HFC/COMPLEX/MEL FLUX/NOVELTY
-                SignalNormalization.MedianCenterNormalize(hfcValues);
-                SignalNormalization.MedianCenterNormalize(complexValues);
-                SignalNormalization.MedianCenterNormalize(melFluxValues);
-                SignalNormalization.MedianCenterNormalize(novelty);
-
-
-                melFrames = MathHelpers.Transpose(melFrames);
-                for (int band = 0; band < melFrames.Count; band++)
-                {
-                    SignalNormalization.MeanCenterNormalize(melFrames[band]);
-                }
-                melFrames = MathHelpers.Transpose(melFrames);
-                melFrames = ComputeDerivative(melFrames);
-
-                int frames = melFrames.Count;
-                float[] superFeature = new float[novelty.Count];
-                for (int frame = 0; frame < frames; frame++)
-                {
-                    superFeature[frame] += 2 * (int)hfcValues[frame]; // Not very noisy, high quality peaks
-                    superFeature[frame] += 2 * (int)complexValues[frame]; // Slightly noisy 
-                    superFeature[frame] += 2 * (int)melFluxValues[frame]; // Slightly noisy
-                    superFeature[frame] += 1 * (int)novelty[frame];       // Very noisy, low quality peaks
-                }
-
-                SignalNormalization.MedianCenterNormalize(superFeature);
-
-                int chartResolution = 480; // 480 ticks per quarter note =
-                int beatsPerMinute = 120;  // There are BPM * ChartResolution ticks/minute or BPM * ChartResolution / 60 ticks/second
-                double ticksPerSecond = chartResolution * beatsPerMinute / 60.0;
-                List<ChartEvent> events = new List<ChartEvent>();
-                List<SyncEvent> syncTrack = new List<SyncEvent> { new SyncEvent(0, 120) };
-                for(int i = 0; i < superFeature.Length; i++)
-                {
-                    if(superFeature[i] > float.Epsilon)
-                    {
-                        // This is probably a note
-                        double absTime = i * (1f / frameRate);
-                        long tick = (long)(absTime * ticksPerSecond);
-                        int tone = GuessTone(melFrames[i]);
-                        events.Add(new ChartEvent(tick, tone));
-                    }
-                }
-
-                NoteTrack track = new NoteTrack(events, syncTrack, chartResolution, GeneralMidiProgram.ElectricGuitar1, null);
-                track.GuitarReshape();
-
-                using (StreamWriter writer = new StreamWriter(Path.ChangeExtension(file, ".chart")))
-                {
-                    // Write SONG section
-                    writer.WriteLine(string.Format(Properties.Resources.SongSection, chartResolution, Path.GetFileName(file)));
-
-                    // Write SYNC section
-                    writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", syncTrack.Select(s => s.ToString()))));
-
-                    // LEAD TRACKS
-                    track.CloneHeroInstrument = CloneHeroInstrument.Single.ToString();
-
-                    // Write Note section
-                    writer.WriteLine(string.Format(Properties.Resources.NoteTrack, $"{CloneHeroDifficulty.Expert}{CloneHeroInstrument.Single}", string.Join("\n", track.Notes.Select(n => n.ToString()))));
-                }
-
-                return;
-            }
-        }
-
-        private static int GuessTone(float[] melBands)
-        {
-            int maxIndex = 0;
-            float max = 0;
-            for(int i = 0; i < melBands.Length; i++)
-            {
-                if(melBands[i] > max)
-                {
-                    max = melBands[i];
-                    maxIndex = i;
-                }
-            }
-
-            return maxIndex;
-        }
-
-        private static List<float[]> ComputeDerivative(List<float[]> melFrames)
-        {
-            // get the magnitude of each tones change
-            List<float[]> derivative = new List<float[]> { melFrames[0] };
-            for(int i = 1; i < melFrames.Count; i++)
-            {
-                float[] row = new float[melFrames[i].Length];
-                for(int j = 0; j < melFrames[i].Length; j++)
-                {
-                    // Ignore negative values (offsets)
-                    row[j] = Math.Max(melFrames[i][j] - melFrames[i - 1][j], 0);
-                }
-
-                derivative.Add(row);
-            }
-
-            return derivative;
         }
 
         /// <summary>
@@ -834,43 +691,26 @@
 
         /// <summary>
         /// Callback function for when the window loads.
-        /// Currentl empty but used for debug/testing.
+        /// Currently empty but used for debug/testing.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Can use this for test code/debugging
-            //int[] imageDim = new int[] { 40, 40, 1 };
-            //Variable input = CNTKLib.InputVariable(imageDim, DataType.Float, "features");
-            //RecurrentConvolutionalNeuralNetwork.RecurrentCNN(input, DeviceDescriptor.GPUDevice(0), imageDim);
-            float[] a = new float[] { 1, 0, 0, 0, 0 };
-            float[] b = new float[] { 1, 0, 1, 0, 0 };
-            //CNTKLib.EditDistanceError()
-            float[] res = RunCNTKFunction(CNTKLib.CosineDistance, b, a);
             ;
         }
 
-        private float[] RunCNTKFunction(Func<Variable, Variable, Function> f, float[] a, float[] b)
+        /// <summary>
+        /// Callback function for when the Open Audio button is clicked.
+        /// </summary>
+        /// <param name="sender">
+        /// The sender
+        /// </param>
+        /// <param name="e">
+        /// The event arguments.
+        /// </param>
+        private void BtnOpenAudio_Click(object sender, RoutedEventArgs e)
         {
-            Variable aVar = Variable.InputVariable(new int[] { a.Length }, DataType.Float);
-            Value aVal = new Value(new NDArrayView(aVar.Shape, a, DeviceDescriptor.CPUDevice));
-
-            Variable bVar = Variable.InputVariable(new int[] { b.Length }, DataType.Float);
-            Value bVal = new Value(new NDArrayView(bVar.Shape, b, DeviceDescriptor.CPUDevice));
-
-            Function func = f(aVar, bVar);
-            Variable output = func.Output;
-            Dictionary<Variable, Value> outputDictionary = new Dictionary<Variable, Value> { { output, null } };
-            func.Evaluate(new Dictionary<Variable, Value> { { aVar, aVal }, { bVar, bVal } }, outputDictionary, DeviceDescriptor.CPUDevice);
-            var x = outputDictionary[output].GetDenseData<float>(output);
-            return outputDictionary[output].GetDenseData<float>(output).First().ToArray();
-        }
-
-        private async void BtnOpenAudio_Click(object sender, RoutedEventArgs e)
-        {
-            TrainingWindow twindow = new TrainingWindow();
-            twindow.ShowDialog();
             OpenFileDialog fileDialog = new OpenFileDialog();
             fileDialog.Filter = "Audio File|*.mp3;*.ogg;*.wav";
             DialogResult result = fileDialog.ShowDialog();
@@ -879,20 +719,261 @@
                 case System.Windows.Forms.DialogResult.OK:
                     string file = fileDialog.FileName;
                     this.AudioFileTextBox.Text = file;
-                    try
-                    {
-                        await Task.Run(() => ProcessMp3File(file));
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Windows.MessageBox.Show(ex.Message, "Load Audio Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-
+                    AudioFileName = file;
+                    this.convertAudioButton.IsEnabled = true;
                     break;
                 case System.Windows.Forms.DialogResult.Cancel:
                 default:
                     break;
             }
+        }
+
+        /// <summary>
+        /// Callback function for when the Convert Audio button is clicked.
+        /// This method validates the min/max tempo text boxes and runs an audio conversion task in the thread pool.
+        /// </summary>
+        /// <param name="sender">
+        /// The sender.
+        /// </param>
+        /// <param name="e">
+        /// The event arguments.
+        /// </param>
+        private void BtnConvertAudio_Click(object sender, RoutedEventArgs e)
+        {
+            // Validate the tempo text boxes contain number and they are normal
+            string minText = this.MinTempoTextBox.Text;
+            string maxText = this.MaxTempoTextBox.Text;
+            bool parseFailure = false;
+            if (!float.TryParse(minText, out float minTempo))
+            {
+                this.MinTempoTextBox.BorderBrush = Brushes.Red;
+                this.MinTempoLabel.Content = $"Minimum Tempo - Could not parse to number.";
+                parseFailure = true;
+            }
+            
+            if (!float.TryParse(maxText, out float maxTempo))
+            {
+                this.MaxTempoTextBox.BorderBrush = Brushes.Red;
+                this.MaxTempoLabel.Content = $"Maximum Tempo - Could not parse to number.";
+                parseFailure = true;
+            }
+
+            if (parseFailure)
+            {
+                return;
+            }
+
+            if (maxTempo <= minTempo)
+            {
+                this.MinTempoTextBox.BorderBrush = Brushes.Red;
+                this.MinTempoLabel.Content = $"Minimum Tempo - Must be larger than Maximum Tempo.";
+                this.MaxTempoTextBox.BorderBrush = Brushes.Red;
+                this.MaxTempoLabel.Content = $"Maximum Tempo - Must be smaller than Minimum Tempo.";
+            }
+            else if (minTempo < 40)
+            {
+                this.MinTempoTextBox.BorderBrush = Brushes.Red;
+                this.MinTempoLabel.Content = $"Minimum Tempo - Must be larger than 40 BPM.";
+            }
+            else if (maxTempo > 300)
+            {
+                this.MaxTempoTextBox.BorderBrush = Brushes.Red;
+                this.MaxTempoLabel.Content = $"Maximum Tempo - Must be less than 300 BPM";
+            }
+            else
+            {
+                this.MaxTempoTextBox.BorderBrush = Brushes.Black;
+                this.MinTempoTextBox.BorderBrush = Brushes.Black;
+                this.MaxTempoLabel.Content = $"Maximum Tempo";
+                this.MinTempoLabel.Content = $"Minimum Tempo";
+            }
+
+            this.convertAudioButton.IsEnabled = false;
+            // Trigger some async work and send a reference to the Progress bar/label with it to report status
+            this.ConvertAudioTask = Task.Run(() => ConvertAudioFile(minTempo, maxTempo)).ContinueWith((t) => UpdateConvertButton(true));
+        }
+
+        /// <summary>
+        /// This method is responsible for all of the computation required to generate the
+        /// tempo track for an audio file. 
+        /// 
+        /// This method should NEVER be run on the UI thread as it takes a few seconds to run.
+        /// </summary>
+        /// <param name="minTempo">
+        /// The minimum tempo that the tempo detection should use as a hint.
+        /// The output tempo may be less than this, this is only a suggestion of where to look.
+        /// </param>
+        /// <param name="maxTempo">
+        /// The maximum tempo that the tempo detection shoudl use as a hint.
+        /// The output tempo may be higher than this, this is only a suggestion of where to look.
+        /// </param>
+        private void ConvertAudioFile(float minTempo, float maxTempo)
+        {
+            float tempMinTempo = minTempo;
+            float tempMaxTempo = maxTempo;
+
+            // BPM Estimation gets pretty wonky when looking for > 200 BPM, so instead check for half the BPM and we can interpolate later.
+            if (maxTempo > 200)
+            {
+                tempMaxTempo /= 2;
+                tempMinTempo = Math.Max(40, tempMinTempo / 2);
+            }
+
+            using (SampleReader reader = new SampleReader(AudioFileName, 50, (1 << 14)))
+            {
+                if (reader.SampleRate != 44100)
+                {
+                    System.Windows.MessageBox.Show($"Unsupported SampleRate = {reader.SampleRate} Hz. Audio file sample rate must equal 44100 Hz. Please resample the audio file using Audacity or something similar.", "Invalid Sample Rate", MessageBoxButton.OK, MessageBoxImage.Error);
+                    UpdateProgressBar("Skipped", 0);
+                    return;
+                }
+
+                UpdateProgressBar("Reading audio file...", 1);
+                float[] signal = reader.ReadAll();
+                RhythmExtractor extractor = new RhythmExtractor(reader.SampleRate, tempMinTempo, tempMaxTempo);
+                (float bpm, float[] ticks, float confidence, float[] estimates, float[] bpmIntervals) = extractor.Compute(signal, UpdateProgressBar);
+                (ticks, bpm) = this.PostProcessTicks(ticks, bpm, minTempo, maxTempo);
+
+                UpdateProgressBar("Building .chart File...", 1);
+                List<SyncEvent> syncTrack = new List<SyncEvent> { new SyncEvent(0, 1, 4) };
+                int currentTick = 0;
+                float currentTime = 0;
+                for (int i = 0; i < ticks.Length; i++)
+                {
+                    float targetTime = ticks[i];
+
+                    // What BPM value will make 192 ticks == tick - currentTime
+                    float deltaT = targetTime - currentTime;
+                    double b = 60f / deltaT;
+                    if (i == 0 || Math.Abs(b - syncTrack[syncTrack.Count - 1].BeatsPerMinute) >= 0.01)
+                    {
+                        // Add the event if its the first event or the BPM changed.
+                        syncTrack.Add(new SyncEvent(currentTick, b));
+                    }
+
+                    currentTick = 192 * (i + 1);
+                    currentTime = targetTime;
+                }
+
+                // Write a .chart file with the sync track filled out
+                string outputFile = Path.ChangeExtension(AudioFileName, ".chart");
+                using (StreamWriter writer = new StreamWriter(outputFile))
+                {
+                    // Write SONG section
+                    writer.WriteLine(string.Format(Properties.Resources.SongSection, 192, Path.GetFileName(AudioFileName)));
+
+                    // Write SYNC section
+                    writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", syncTrack.Select(s => s.ToString()))));
+                }
+
+                UpdateProgressBar($"Complete -> {outputFile}", 100);
+            }
+        }
+
+        /// <summary>
+        /// Clean up starting ticks that can appear very close together.
+        /// If an integer multiple of the computed BPM falls into the desired BPM range, then interpolate/remove tick values
+        /// to meet that BPM target.
+        /// For example if a compute BPM of 90 is returned but the user wants 160 <= BPM <=200 then we can 2x that BPM to meet their needs.
+        /// This is easily done by adding a single new tick in between each computed tick.
+        /// </summary>
+        /// <param name="ticks">
+        /// The ticks that were computed from onset features.
+        /// </param>
+        /// <param name="bpm">
+        /// The average BPM from the ticks in the 'ticks' parameter.
+        /// </param>
+        /// <param name="minTempo">
+        /// The minimum tempo desired by the user.
+        /// </param>
+        /// <param name="maxTempo">
+        /// The maximum tempo desired by the user.
+        /// </param>
+        /// <returns>
+        /// A new tick array without the close together starting ticks.
+        /// The new tick array may also have ticks added/or removed to change the BPM to an integer multiple.
+        /// </returns>
+        private (float[] newTicks, float newBmp) PostProcessTicks(float[] ticks, float bpm, float minTempo, float maxTempo)
+        {
+            List<float> goodTicks = new List<float>(ticks);
+            while(60f / goodTicks[0] > (2  * bpm))
+            {
+                    goodTicks.RemoveAt(0);
+            }
+
+            int multiplier = 1;
+            while(bpm * (multiplier + 1) < maxTempo)
+            {
+                multiplier++;
+            }
+
+            if (multiplier > 1 && bpm * multiplier > minTempo)
+            {
+                // interpolate ticks with (multiplier-1) intermediate ticks
+                ticks = goodTicks.ToArray();
+                for(int i = 0; i < ticks.Length - 1; i++)
+                {
+                    float start = ticks[i];
+                    float end = ticks[i + 1];
+                    float step = (end - start) / multiplier;
+                    for(int j = 1; j < multiplier; j++)
+                    {
+                        goodTicks.Add(start + (j * step));
+                    }
+                }
+
+                goodTicks.Sort();
+                return (goodTicks.ToArray(), bpm * multiplier);
+            }
+
+            int diviser = 1;
+            while(bpm / (diviser + 1f) > minTempo)
+            {
+                diviser++;
+            }
+
+            if (diviser > 1 && bpm / diviser < maxTempo)
+            {
+                // keep 1 element, remove diviser-1 
+                int i = 0;
+                while(i < goodTicks.Count)
+                {
+                    // remove goodTicks[i+1] ... goodTicks[i+diviser-1]
+                    for(int j = i + 1; j <= i + diviser - 1; j++)
+                    {
+                        goodTicks.RemoveAt(j);
+                    }
+
+                    i++;
+                }
+
+                return (goodTicks.ToArray(), bpm / diviser);
+            }
+
+            return (goodTicks.ToArray(), bpm);
+        }
+
+        /// <summary>
+        /// Method used for the safe access of UI elements from background threads.
+        /// </summary>
+        /// <param name="enabled"></param>
+        private void UpdateConvertButton(bool enabled = false)
+        {
+            Dispatcher.Invoke(() => this.convertAudioButton.IsEnabled = enabled);
+        }
+
+        /// <summary>
+        /// Method used for the safe access of UI elements from background thread.
+        /// </summary>
+        /// <param name="label"></param>
+        /// <param name="progressPercent"></param>
+        private void UpdateProgressBar(string label, double progressPercent)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                this.ConversionProgress.Value = progressPercent;
+                this.StatusText.Text = label;
+            });
         }
     }
 }

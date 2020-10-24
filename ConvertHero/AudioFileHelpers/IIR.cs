@@ -1,17 +1,36 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+
+    /// <summary>
+    /// Allows the computation of an Infinite Impulse Response filter.
+    /// </summary>
     public class IIR
     {
+        /// <summary>
+        /// The denominator coefficients for the filter.
+        /// </summary>
         private float[] a;
+
+        /// <summary>
+        /// The numerator coefficients for the filter.
+        /// </summary>
         private float[] b;
+
+        /// <summary>
+        /// The current state of the filter.
+        /// </summary>
         private float[] state;
 
+        /// <summary>
+        /// Initializes a new instance of the IIR class.
+        /// </summary>
+        /// <param name="numerators">
+        /// the numerator coefficients.
+        /// </param>
+        /// <param name="denominators">
+        /// The denominator coefficients.
+        /// </param>
         public IIR(float[] numerators, float[] denominators)
         {
             this.a = denominators;
@@ -33,6 +52,18 @@ namespace ConvertHero.AudioFileHelpers
             this.state = new float[wantedSize];
         }
 
+        /// <summary>
+        /// Update the state of the filter.
+        /// </summary>
+        /// <param name="size">
+        /// the size of the state.
+        /// </param>
+        /// <param name="x">
+        /// The x
+        /// </param>
+        /// <param name="y">
+        /// The y
+        /// </param>
         private void UpdateStateLine(int size, float x, float y)
         {
             for(int k = 1; k < size; k++)
@@ -42,6 +73,15 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Compute the result of feeding the signal x into the filter.
+        /// </summary>
+        /// <param name="x">
+        /// The input to the filter.
+        /// </param>
+        /// <returns>
+        /// the output of the IIR filter.
+        /// </returns>
         public float[] Compute(float[] x)
         {
             float[] output = new float[x.Length];
@@ -86,6 +126,9 @@ namespace ConvertHero.AudioFileHelpers
             return output;
         }
 
+        /// <summary>
+        /// Reset the internal state so the filter can be re-used.
+        /// </summary>
         public void Reset()
         {
             this.state = new float[this.state.Length];
@@ -116,6 +159,12 @@ namespace ConvertHero.AudioFileHelpers
             return exponent == 0;
         }
 
+        /// <summary>
+        /// Re-normalize a float back down to 0.
+        /// </summary>
+        /// <param name="f">
+        /// The input floating point number.
+        /// </param>
         private static void Renormalize(ref float f)
         {
             if(IsDenormal(f))

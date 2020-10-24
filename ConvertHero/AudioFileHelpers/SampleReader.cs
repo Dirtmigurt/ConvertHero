@@ -68,6 +68,15 @@
             this.windowSizeSeconds = windowSizeSamples / (double)this.SampleRate;
         }
 
+        /// <summary>
+        /// Initialize the sample reader with a file, and framerate.
+        /// </summary>
+        /// <param name="fileName">
+        /// The name of the audio file that should be read.
+        /// </param>
+        /// <param name="frameRate">
+        /// The frame rate to read samples in at.
+        /// </param>
         private void Initialize(string fileName, int frameRate)
         {
             WaveStream reader = null;
@@ -92,6 +101,16 @@
             this.approxTotalSamples = (long)reader.TotalTime.TotalSeconds * this.SampleRate;
         }
 
+        /// <summary>
+        /// Gets the next frame of the audio file.
+        /// If the frame rate is 50, this would need to be called 50 times to advance 1 second in the signal.
+        /// </summary>
+        /// <param name="buffer">
+        /// Array that contains the samples in the window/frame.
+        /// </param>
+        /// <returns>
+        /// Number of samples read from the file and put into the buffer.
+        /// </returns>
         public int Read(out float[] buffer)
         {
             buffer = new float[this.windowSizeSamples];
@@ -124,6 +143,15 @@
             return n;
         }
 
+        /// <summary>
+        /// Read the entire signal into a single array.
+        /// </summary>
+        /// <param name="maxSamples">
+        /// Allows truncating the samples for testing like readinly only the first 1,000,000 samples.
+        /// </param>
+        /// <returns>
+        /// An array contain all samples in the audio file.
+        /// </returns>
         public float[] ReadAll(int maxSamples = int.MaxValue)
         {
             List<float> samples = new List<float>();
@@ -145,11 +173,23 @@
             return samples.ToArray();
         }
 
+        /// <summary>
+        /// Guess the number of frames that will be returned by the sample reader.
+        /// </summary>
+        /// <param name="frameRate">
+        /// Any custom frame rate.
+        /// </param>
+        /// <returns>
+        /// The number of frames it would take to get through the whole signal.
+        /// </returns>
         public long TotalFrames(int frameRate)
         {
             return (long)(this.Reader.TotalTime.TotalSeconds * frameRate);
         }
 
+        /// <summary>
+        /// Release any system resources.
+        /// </summary>
         public void Dispose()
         {
             if (this.Reader != null)

@@ -1,22 +1,81 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+
+    /// <summary>
+    /// Detects peaks in an audio signal.
+    /// </summary>
     public class PeakDetection
     {
+        /// <summary>
+        /// The min position that a peak can occur at
+        /// </summary>
         float minPosition;
+
+        /// <summary>
+        /// The max position that a peak can occur at.
+        /// </summary>
         float maxPosition;
+
+        /// <summary>
+        /// The minimum height of a peak.
+        /// </summary>
         float threshold;
+
+        /// <summary>
+        /// The maximum number of peaks that should be returned.
+        /// </summary>
         int maxPeaks;
+
+        /// <summary>
+        /// The range.
+        /// </summary>
         float range;
+
+        /// <summary>
+        /// Interpolate between peaks
+        /// </summary>
         bool interpolate;
+
+        /// <summary>
+        /// Order the output by Position/PeakMagnitude
+        /// </summary>
         OrderByType orderby;
+
+        /// <summary>
+        /// Minimum distance that two peaks can be from each other.
+        /// </summary>
         float minPeakDistance;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="minPos">
+        /// The min position that a peak can occur at
+        /// </param>
+        /// <param name="maxPos">
+        /// The max position that a peak can occur at.
+        /// </param>
+        /// <param name="threshold">
+        /// The minimum height of a peak.
+        /// </param>
+        /// <param name="maxPeaks">
+        /// The maximum number of peaks that should be returned.
+        /// </param>
+        /// <param name="range">
+        /// The range.
+        /// </param>
+        /// <param name="interpolate">
+        /// Interpolate between peaks
+        /// </param>
+        /// <param name="orderby">
+        /// Order the output by Position/PeakMagnitude
+        /// </param>
+        /// <param name="minPeakDistance">
+        /// Minimum distance that two peaks can be from each other.
+        /// </param>
         public PeakDetection(float minPos = 0, float maxPos = -1, float threshold = 1e-6f, int maxPeaks= -1, float range = 1, bool interpolate = true, OrderByType orderby = OrderByType.Position, float minPeakDistance = 0)
         {
             this.minPosition = minPos;
@@ -29,6 +88,15 @@ namespace ConvertHero.AudioFileHelpers
             this.minPeakDistance = minPeakDistance;
         }
 
+        /// <summary>
+        /// Determine which local maxima are peaks.
+        /// </summary>
+        /// <param name="signal">
+        /// The input signal
+        /// </param>
+        /// <returns>
+        /// The positions and amplitudes of the peaks in the signal.
+        /// </returns>
         public (float[] positions, float[] amplitudes) Compute(float[] signal)
         {
             List<Peak> peaks = new List<Peak>(signal.Length);
@@ -205,6 +273,15 @@ namespace ConvertHero.AudioFileHelpers
             return (positions, amplitudes);
         }
 
+        /// <summary>
+        /// Interpolate between samples
+        /// </summary>
+        /// <param name="left"></param>
+        /// <param name="middle"></param>
+        /// <param name="right"></param>
+        /// <param name="curBin"></param>
+        /// <param name="resultValue"></param>
+        /// <param name="resultBin"></param>
         private static void Interpolate(float left, float middle, float right, int curBin, out float resultValue, out float resultBin)
         {
             float delta_x = 0.5f * ((left - right) / (left - (2 * middle) + right));
@@ -213,47 +290,119 @@ namespace ConvertHero.AudioFileHelpers
         }
     }
 
+    /// <summary>
+    /// Class to hold all information about a peak in a single place.
+    /// Also allows for the comparison of peaks
+    /// </summary>
     public class Peak
     {
+        /// <summary>
+        /// The location of the peak (index)
+        /// </summary>
         public float position;
+
+        /// <summary>
+        /// The magnitude of the peak
+        /// </summary>
         public float magnitude;
 
+        /// <summary>
+        /// Initializes a new instaces of the Peak class.
+        /// </summary>
+        /// <param name="pos">The location of the peak (index)</param>
+        /// <param name="mag">The magnitude of the peak</param>
         public Peak(float pos, float mag)
         {
             this.position = pos;
             this.magnitude = mag;
         }
 
+        /// <summary>
+        /// Determines how to peaks are compared for less than
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns>
+        /// true if Peak a is less than Peak b
+        /// </returns>
         public static bool operator< (Peak a, Peak b)
         {
             return a.magnitude < b.magnitude;
         }
 
+        /// <summary>
+        /// Determines how to peaks are compared for greater than
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns>
+        /// true if Peak a is greater than Peak b
+        /// </returns>
         public static bool operator> (Peak a, Peak b)
         {
             return a.magnitude > b.magnitude;
         }
 
+        /// <summary>
+        /// Determines how to peaks are compared for less than or equal to
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns>
+        /// true if Peak a is less than or equal to Peak b
+        /// </returns>
         public static bool operator<= (Peak a, Peak b)
         {
             return a.magnitude <= b.magnitude;
         }
 
+        /// <summary>
+        /// Determines how to peaks are compared for greater than or equal
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns>
+        /// true if Peak a is greater than or equal Peak b
+        /// </returns>
         public static bool operator>= (Peak a, Peak b)
         {
             return a.magnitude >= b.magnitude;
         }
 
+        /// <summary>
+        /// Determines how to peaks are compared for equality
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns>
+        /// true if Peak a is equal to Peak b
+        /// </returns>
         public static bool operator== (Peak a, Peak b)
         {
             return (a.magnitude == b.magnitude) && (a.position == b.position);
         }
 
+        /// <summary>
+        /// Determines how to peaks are compared for non-equality
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns>
+        /// true if Peak a is not-equal to Peak b
+        /// </returns>
         public static bool operator!= (Peak a, Peak b)
         {
             return (a.magnitude != b.magnitude) || (a.position != b.position);
         }
 
+        /// <summary>
+        /// Determines how to peaks are compared for equality
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns>
+        /// true if Peak a is equal to Peak b
+        /// </returns>
         public override bool Equals(object obj)
         {
             var peak = obj as Peak;
@@ -262,6 +411,12 @@ namespace ConvertHero.AudioFileHelpers
                    this.magnitude == peak.magnitude;
         }
 
+        /// <summary>
+        /// Compute the hash code for a peak
+        /// </summary>
+        /// <returns>
+        /// A unique int for each position/magnitude combination.
+        /// </returns>
         public override int GetHashCode()
         {
             var hashCode = -1892222449;

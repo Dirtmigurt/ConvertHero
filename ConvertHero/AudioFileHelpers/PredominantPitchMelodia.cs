@@ -1,38 +1,108 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     public class PredominantPitchMelodia
     {
+        /// <summary>
+        /// Dictionary used to aggregate results of concurrent workers.
+        /// </summary>
         ConcurrentDictionary<int, float[]> peakBinsDict = new ConcurrentDictionary<int, float[]>();
+
+        /// <summary>
+        /// Dictionary used to aggregate results of concurrent workers.
+        /// </summary>
         ConcurrentDictionary<int, float[]> peakSalienceDict = new ConcurrentDictionary<int, float[]>();
 
+        /// <summary>
+        /// Frame cutter used to chop up the input audio signal into frames.
+        /// </summary>
         FrameCutter frameCutter;
 
+        /// <summary>
+        /// Windower to apply window to frames.
+        /// </summary>
         Windowing windower;
-        // FFT
+        
+        /// <summary>
+        /// Helper object that finds peaks in the spectrum
+        /// </summary>
         SpectralPeaks spectralPeaks;
+
+        /// <summary>
+        /// Helper object that computes pitch salience
+        /// </summary>
         PitchSalienceFunction pitchSalience;
+
+        /// <summary>
+        /// Helper object that find peaks in the pitch salience.
+        /// </summary>
         PitchSalienceFunctionPeaks saliencePeaks;
+
+        /// <summary>
+        /// Helper object that finds pitch contours among pitch salience peaks.
+        /// </summary>
         PitchContours pitchContours;
+
+        /// <summary>
+        /// Helper object that finds a melody within many pitch contours.
+        /// </summary>
         PitchContoursMelody melodyDetector;
 
         #region
+        /// <summary>
+        /// List of windowers used by concurrent workers.
+        /// </summary>
         List<Windowing> windowerList = new List<Windowing>();
-        // FFT
+        
+        /// <summary>
+        /// List of spectralPeak finders used by concurrent workers.
+        /// </summary>
         List<SpectralPeaks> spectralPeaksList = new List<SpectralPeaks>();
+
+        /// <summary>
+        /// List of PitchSalienceFunction computers used by concurrent workers.
+        /// </summary>
         List<PitchSalienceFunction> pitchSalienceList = new List<PitchSalienceFunction>();
+
+        /// <summary>
+        /// List of peak finders used by concurrent workers.
+        /// </summary>
         List<PitchSalienceFunctionPeaks> saliencePeaksList = new List<PitchSalienceFunctionPeaks>();
+
+        /// <summary>
+        /// List of semaphores used to limit access to an index [i] to a single thread.
+        /// </summary>
         List<SemaphoreSlim> semaphoreList = new List<SemaphoreSlim>();
         #endregion
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sampleRate">the sampling rate of the audio signal [Hz]</param>
+        /// <param name="frameSize">the frame size for computing pitch salience</param>
+        /// <param name="hopSize">the hop size with which the pitch salience function was computed</param>
+        /// <param name="binResolution">salience function bin resolution [cents]</param>
+        /// <param name="referenceFrequency">the reference frequency for Hertz to cent conversion [Hz], corresponding to the 0th cent bin</param>
+        /// <param name="magnitudeThreshold">spectral peak magnitude threshold (maximum allowed difference from the highest peak in dBs)</param>
+        /// <param name="magnitudeCompression">magnitude compression parameter for the salience function (=0 for maximum compression, =1 for no compression)</param>
+        /// <param name="numberHarmonics">number of considered harmonics</param>
+        /// <param name="harmonicWeight">harmonic weighting parameter (weight decay ratio between two consequent harmonics, =1 for no decay)</param>
+        /// <param name="peakFrameThreshold">per-frame salience threshold factor (fraction of the highest peak salience in a frame)</param>
+        /// <param name="peakDistributionThreshold">allowed deviation below the peak salience mean over all frames (fraction of the standard deviation)</param>
+        /// <param name="pitchContinuity">pitch continuity cue (maximum allowed pitch change during 1 ms time period) [cents]</param>
+        /// <param name="timeContinuity">time continuity cue (the maximum allowed gap duration for a pitch contour) [ms]</param>
+        /// <param name="minDuration">the minimum allowed contour duration [ms]</param>
+        /// <param name="voicingTolerance">allowed deviation below the average contour mean salience of all contours (fraction of the standard deviation)</param>
+        /// <param name="voiceVibrato">detect voice vibrato</param>
+        /// <param name="filterIterations">number of iterations for the octave errors / pitch outlier filtering process</param>
+        /// <param name="guessUnvoiced">estimate pitch for non-voiced segments by using non-salient contours when no salient ones are present in a frame</param>
+        /// <param name="minFrequency">the minimum allowed frequency for salience function peaks (ignore contours with peaks below) [Hz]</param>
+        /// <param name="maxFrequency">the maximum allowed frequency for salience function peaks (ignore contours with peaks above) [Hz]</param>
         public PredominantPitchMelodia(
             /// Spectrum Processing
             float sampleRate = 44100, 
@@ -81,6 +151,14 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Compute the melody given the audio signal.
+        /// </summary>
+        /// <param name="signal">The input audio signal.</param>
+        /// <returns>
+        /// pitch = The frequency carrying the melody at each frame.
+        /// pitchConfidence = the confidence in the melody estimation at each frame.
+        /// </returns>
         public (float[] pitch, float[] pitchConfidence) Compute(float[] signal)
         {
             this.frameCutter.SetBuffer(signal);
@@ -106,6 +184,17 @@ namespace ConvertHero.AudioFileHelpers
             return this.melodyDetector.Compute(contoursBins, contoursSalience, contoursStartTimes, duration);
         }
 
+        /// <summary>
+        /// Compute the melody slightly faster by doing the peak salience concurrently,
+        /// and then computing the contours and finally the melody.
+        /// </summary>
+        /// <param name="signal">
+        /// The input audio signal.
+        /// </param>
+        /// <returns>
+        /// pitch = The frequency carrying the melody at each frame.
+        /// pitchConfidence = the confidence in the melody estimation at each frame.
+        /// </returns>
         public async Task<(float[] pitch, float[] pitchConfidence)> ComputeAsync(float[] signal)
         {
             this.frameCutter.SetBuffer(signal);
@@ -138,6 +227,15 @@ namespace ConvertHero.AudioFileHelpers
             return this.melodyDetector.Compute(contoursBins, contoursSalience, contoursStartTimes, duration);
         }
 
+        /// <summary>
+        /// Process a single frame of the input signal and stuff the results in a dictionary.
+        /// </summary>
+        /// <param name="frame">
+        /// The frame that should be processed.
+        /// </param>
+        /// <param name="frameIndex">
+        /// The index of the frame being processed.
+        /// </param>
         public void ProcessFrame(float[] frame, int frameIndex)
         {
             int i = frameIndex % this.semaphoreList.Count;

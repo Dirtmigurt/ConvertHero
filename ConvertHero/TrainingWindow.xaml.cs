@@ -82,7 +82,7 @@
 
         private void TrainModelButton_Click(object sender, RoutedEventArgs e)
         {
-            TestMethod(@"C:\test\BedofRazors.mp3");
+            TestMethod(@"C:\test\automaton.ogg");
             //GetMidiFileLabels(@"E:\clonehero-win64\Songs\Rock Band 3 DLC\Rock Band 3 - DLC\Breaking Benjamin - Sooner or Later\notes.mid", 50);
             //BuildMasterFeaturefile();
             // Load the Audio file (features)
@@ -123,7 +123,7 @@
                 //return;
 
                 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                RhythmExtractor extractor = new RhythmExtractor(reader.SampleRate, 130, 150);
+                RhythmExtractor extractor = new RhythmExtractor(reader.SampleRate, 85, 105);
                 var (bpm, ticks, confidence, estimates, bpmIntervals) = extractor.Compute(signal);
 
                 List<SyncEvent> syncTrack = new List<SyncEvent> { new SyncEvent(0, 1, 4) };
@@ -307,7 +307,7 @@
                     hannWindow.Compute(ref buffer);
 
                     // calculate the frequency magnitues of the hann window
-                    (float[] mag, float[] phase) = CartesianToPolar.ConvertComplexToPolar(Spectrum.ComputeFFT(buffer, reader.SampleRate));
+                    (float[] mag, float[] phase) = CartesianToPolar.ConvertComplexToPolar(Spectrum.ComputeFFT(buffer));
 
                     // Calculate the simple onset detection functions
                     //hfcValues.Add(onsets.ComputeHFC(mag));
@@ -388,7 +388,7 @@
 
                     // calculate the frequency magnitues of the hann window
                     //(float[] mag, float[] phase) = CartesianToPolar.ConvertComplexToPolar(Spectrum.ComputeFFT(buffer, mfSampleReader.SampleRate));
-                    (MathNet.Numerics.Complex32[] fft, float[] magnitude) = Spectrum.ComputeFFTWithMagnitude(buffer, mfSampleReader.SampleRate);
+                    (MathNet.Numerics.Complex32[] fft, float[] magnitude) = Spectrum.ComputeFFTWithMagnitude(buffer);
 
                     // Should not return negatives, this messes lots of stuff up
                     float[] decibels = MathHelpers.ComputeBinMagnitudes(fft);

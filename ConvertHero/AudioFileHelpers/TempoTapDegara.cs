@@ -1,54 +1,165 @@
-﻿using Accord.Math;
-using Melanchall.DryWetMidi.Smf;
-using NAudio.Wave;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using Accord.Math;
+    using Melanchall.DryWetMidi.Smf;
+    using NAudio.Wave;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Text;
+    using System.Threading.Tasks;
+
+    /// <summary>
+    /// This algorithm estimates beat positions given an onset detection function.  
+    /// The detection function is partitioned into 6-second frames with a 1.5-second increment, and the autocorrelation is computed for each frame, and is weighted by a tempo preference curve [2]. 
+    /// Periodicity estimations are done frame-wisely, searching for the best match with the Viterbi algorith [3]. 
+    /// The estimated periods are then passed to the probabilistic beat tracking algorithm [1], which computes beat positions.
+    /// 
+    ///  References:
+    ///   [1] Degara, N., Rua, E. A., Pena, A., Torres-Guijarro, S., Davies, M. E., & Plumbley, M. D. (2012). Reliability-informed beat tracking of musical signals. Audio, Speech, and Language Processing, IEEE Transactions on, 20(1), 290-301. 
+    ///   [2] Davies, M. E., & Plumbley, M. D. (2007). Context-dependent beat tracking of musical audio. Audio, Speech, and Language Processing, IEEE Transactions on, 15(3), 1009-1020. 
+    ///   [3] Stark, A. M., Davies, M. E., & Plumbley, M. D. (2009, September). Real-time beatsynchronous analysis of musical audio. In 12th International Conference on Digital Audio Effects (DAFx-09), Como, Italy.
+    /// </summary>
     public class TempoTapDegara
     {
-        // Davies' beat periods estimation:
+        #region DaviesBeatPeriod
+
+        /// <summary>
+        /// Half of the smoothing window size.
+        /// </summary>
         private int smoothingWindowHalfSize;
+
+        /// <summary>
+        /// The number of comb filters to use.
+        /// </summary>
         private const int numberCombs = 4;
+
+        /// <summary>
+        /// duration of one of the OnsetDetectionFunction frames.
+        /// </summary>
         private float frameDurationODF;
+
+        /// <summary>
+        /// sample rate of the onset detection function.
+        /// </summary>
         private float sampleRateODF;
+
+        /// <summary>
+        /// Frame size of the onset detection function.
+        /// </summary>
         private int frameSizeODF;
+
+        /// <summary>
+        /// hop size of the onset detection function.
+        /// </summary>
         private int hopSizeODF;
+
+        /// <summary>
+        /// duration in time that is jumped on each hop of the ODF.
+        /// </summary>
         private float hopDurationODF;
+
+        /// <summary>
+        /// How many samples should be interpolated?
+        /// </summary>
         private int resample;
+
+        /// <summary>
+        /// How many frames are in the onset detection function.
+        /// </summary>
         private int numberFramesODF;
+
+        /// <summary>
+        /// The minimum period index.
+        /// </summary>
         private int periodMinIndex;
+
+        /// <summary>
+        /// The maximum period index.
+        /// </summary>
         private int periodMaxIndex;
+
+        /// <summary>
+        ///  The maximum period user index.
+        /// </summary>
         private int periodMaxUserIndex;
+
+        /// <summary>
+        /// The minimum period user index.
+        /// </summary>
         private int periodMinUserIndex;
+
+        /// <summary>
+        ///   Tempo preference weights (Rayleigh distribution) with a peak at 120 BPM,
+        ///   equal to pow(43, 2) with the default ODF sample rate (44100./512).
+        ///   Maximum period of ODF to consider (period of 512 ODF samples with the
+        ///   default settings) correspond to 512 * 512. / 44100. = ~6 secs
+        /// </summary>
         float[] tempoWeights;
+
+        /// <summary>
+        ///   this  is a this.hopSizeODF x this.hopSizeODF matrix, where each column i consists of a gaussian centered at i, with stddev=8 by default (i.e., when this.hopSizeODF=128), and leave
+        ///   columns before 28th and after 108th zeroed, as well as the lines before 28th and after 108th. 
+        /// </summary>
         List<List<float>> transitionsViterbi;
+
+        /// <summary>
+        /// A Helper object used to compute auto-correlation.
+        /// </summary>
         AutoCorrelation autocorrelation;
+
+        /// <summary>
+        /// A Helper object used to compute moving averages.
+        /// </summary>
         MovingAverage movingAverage;
+
+        /// <summary>
+        /// A Helper object used to dive signals up into frames.
+        /// </summary>
         FrameCutter frameCutter;
 
-        // Degara's beat tracking from periods:
+        #endregion
+
+        #region DegaraBeatTracking
+
+        /// <summary>
+        /// Magic number
+        /// </summary>
         float alpha;
+
+        /// <summary>
+        /// Magic number
+        /// </summary>
         float sigma_ibi;
+
+        /// <summary>
+        /// Magic number
+        /// </summary>
         int numberStates;
+
+        /// <summary>
+        /// The resolution of the onset detection function.
+        /// </summary>
         float resolutionODF;
+
+        /// <summary>
+        /// The number of samples in the onsetDetections signal.
+        /// </summary>
         int numberFrames;
 
+        #endregion
 
         /// <summary>
         /// 
+        /// Note that the input values of the onset detection functions must be non-negative otherwise an exception is thrown. Parameter \"maxTempo\" should be 20bpm larger than \"minTempo\", otherwise an exception is thrown.
         /// </summary>
         /// <param name="sampleRateODF">
         /// The sampling rate of the onset detection function [Hz].
         /// This is equivalent to the Signal Sample rate / the ODF hop size.
         /// </param>
-        /// <param name="resample"></param>
-        /// <param name="maxTempo"></param>
-        /// <param name="minTempo"></param>
+        /// <param name="resample">The amount of resampling to perform.</param>
+        /// <param name="maxTempo">The maximum tempo to look for.</param>
+        /// <param name="minTempo">The minimum tempo to look for.</param>
         public TempoTapDegara(float sampleRateODF = 44100f / 512f, Resample resample = Resample.None, float maxTempo = 240, float minTempo = 40)
         {
             this.resample = (int)resample;
@@ -93,12 +204,16 @@ namespace ConvertHero.AudioFileHelpers
             this.resolutionODF = 1f / this.sampleRateODF;
         }
 
+
+        /// <summary>
+        ///   Tempo preference weights (Rayleigh distribution) with a peak at 120 BPM,
+        ///   equal to pow(43, 2) with the default ODF sample rate (44100./512).
+        ///   Maximum period of ODF to consider (period of 512 ODF samples with the
+        ///   default settings) correspond to 512 * 512. / 44100. = ~6 secs
+        /// </summary>
         private void CreateTempoPreferenceCurve()
         {
-            // Tempo preference weights (Rayleigh distribution) with a peak at 120 BPM,
-            // equal to pow(43, 2) with the default ODF sample rate (44100./512).
-            // Maximum period of ODF to consider (period of 512 ODF samples with the
-            // default settings) correspond to 512 * 512. / 44100. = ~6 secs
+
             float rayparam2 = (float)Math.Pow(Math.Round(60 * this.sampleRateODF / 120f), 2);
             int maxPeriod = this.hopSizeODF;
             this.tempoWeights = new float[maxPeriod];
@@ -111,16 +226,17 @@ namespace ConvertHero.AudioFileHelpers
             MathHelpers.NormalizeSum(ref this.tempoWeights);
         }
 
+        /// <summary>
+        ///   Prepare a transition matrix for Viterbi algorithm: it is a this.hopSizeODF x
+        ///   this.hopSizeODF matrix, where each column i consists of a gaussian centered
+        ///   at i, with stddev=8 by default (i.e., when this.hopSizeODF=128), and leave
+        ///   columns before 28th and after 108th zeroed, as well as the lines before
+        ///   28th and after 108th. Paper: informal tests revealed that stddev parameter
+        ///   can vary by a factor of 2 without altering the overall performance of beat
+        ///   tracker.
+        /// </summary>
         private void CreateViterbiTransitionMatrix()
         {
-            // Prepare a transition matrix for Viterbi algorithm: it is a _hopSizeODF x
-            // _hopSizeODF matrix, where each column i consists of a gaussian centered
-            // at i, with stddev=8 by default (i.e., when _hopSizeODF=128), and leave
-            // columns before 28th and after 108th zeroed, as well as the lines before
-            // 28th and after 108th. Paper: informal tests revealed that stddev parameter
-            // can vary by a factor of 2 without altering the overall performance of beat
-            // tracker.
-
             this.transitionsViterbi = new List<List<float>>();
             for (int i = 0; i < this.hopSizeODF; i++)
             {
@@ -152,6 +268,13 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Create a gaussian with the specified parameters.
+        /// </summary>
+        /// <param name="gaussianStd">The standard deviation of the gaussian.</param>
+        /// <param name="step">The step of the gaussian</param>
+        /// <param name="scale">The scale of the gaussian.</param>
+        /// <returns></returns>
         private float[] GaussianPDF(float gaussianStd, float step, float scale)
         {
             int gaussianSize = (int)(2 * Math.Ceiling(4 * gaussianStd / step) + 1);
@@ -175,7 +298,7 @@ namespace ConvertHero.AudioFileHelpers
         }
 
         /// <summary>
-        /// 
+        /// Compute the tick locations of a beat given the onset detection function output.
         /// </summary>
         /// <param name="onsetDetections">
         /// The input frame-wise vector of onset detection values.
@@ -213,6 +336,18 @@ namespace ConvertHero.AudioFileHelpers
             return this.ComputeBeatsDegara(onsetDetections, beatPeriods, beatEndPositions);
         }
 
+        /// <summary>
+        /// Compute the beat periods using Davies' algorithm
+        /// </summary>
+        /// <param name="onsetDetections">
+        /// The onset detections
+        /// </param>
+        /// <param name="beatPeriods">
+        /// The resulting beat periods.
+        /// </param>
+        /// <param name="beatEndPositions">
+        /// The resulting beat end positions.
+        /// </param>
         private void ComputeBeatPeriodsDavies(float[] onsetDetections, out List<float> beatPeriods, out List<float> beatEndPositions)
         {
             this.AdaptiveThreshold(ref onsetDetections, this.smoothingWindowHalfSize);
@@ -378,10 +513,12 @@ namespace ConvertHero.AudioFileHelpers
         /// (Hidden Markov Model). Tempo estimations throughout the track are assumed
         /// to be computed from the algorithm by M. Davies.
         /// </summary>
-        /// <param name="onsetDetections"></param>
-        /// <param name="beatPeriods"></param>
-        /// <param name="beatEndPositions"></param>
-        /// <returns></returns>
+        /// <param name="onsetDetections">The onset detection function output.</param>
+        /// <param name="beatPeriods">The beat periods computed by M.Davies' algorithm.</param>
+        /// <param name="beatEndPositions">The beat end positions computed by M.Davies' algorithm.</param>
+        /// <returns>
+        /// The tick locations for the beats.
+        /// </returns>
         private float[] ComputeBeatsDegara(float[] onsetDetections, List<float> beatPeriods, List<float> beatEndPositions)
         {
             // avoid zeros to void log(0) errors
@@ -461,6 +598,14 @@ namespace ConvertHero.AudioFileHelpers
             return ticks.ToArray();
         }
 
+        /// <summary>
+        /// Decode the beats
+        /// </summary>
+        /// <param name="transitionMatrix"></param>
+        /// <param name="beatPeriods"></param>
+        /// <param name="beatEndPositions"></param>
+        /// <param name="biy"></param>
+        /// <returns></returns>
         private List<int> DecodeBeats(Dictionary<float, List<List<float>>> transitionMatrix, List<float> beatPeriods, List<float> beatEndPositions, List<List<float>> biy)
         {
             int currentIndex = 0;
@@ -539,6 +684,11 @@ namespace ConvertHero.AudioFileHelpers
             return sequenceStates.ToList();
         }
 
+        /// <summary>
+        /// Some magic
+        /// </summary>
+        /// <param name="ibiPDF"></param>
+        /// <returns></returns>
         private List<List<float>> ComputeHMMTransitionMatrix(float[] ibiPDF)
         {
             List<List<float>> transitions = new List<List<float>>();
@@ -594,15 +744,20 @@ namespace ConvertHero.AudioFileHelpers
             return transitions;
         }
 
+        /// <summary>
+        /// Adaptive moving average threshold to emphasize the strongest and discard the
+        /// least significant peaks. Subtract the adaptive mean, and half-wave rectify
+        /// the output, setting any negative valued elements to zero.
+        ///
+        /// Align filter output for symmetrical averaging, and we want the filter to
+        /// return values on the edges as the averager output computed at these
+        /// positions to avoid smoothing to zero.
+        /// </summary>
+        /// <param name="array">The array to threshold</param>
+        /// <param name="smoothingHalfSize">The size of the moving averager</param>
         private void AdaptiveThreshold(ref float[] array, int smoothingHalfSize)
         {
-            // Adaptive moving average threshold to emphasize the strongest and discard the
-            // least significant peaks. Subtract the adaptive mean, and half-wave rectify
-            // the output, setting any negative valued elements to zero.
 
-            // Align filter output for symmetrical averaging, and we want the filter to
-            // return values on the edges as the averager output computed at these
-            // positions to avoid smoothing to zero.
 
             List<float> temp = new List<float>(array);
             for(int i = 0; i < smoothingHalfSize; i++)
@@ -623,6 +778,9 @@ namespace ConvertHero.AudioFileHelpers
         }
     }
 
+    /// <summary>
+    /// Potential resampling ammounts.
+    /// </summary>
     public enum Resample
     {
         None = 1,

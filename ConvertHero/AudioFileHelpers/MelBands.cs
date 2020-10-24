@@ -1,37 +1,97 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Text;
+    using System.Threading.Tasks;
+
+    /// <summary>
+    /// Supported Mel Warping Functions
+    /// </summary>
     public enum MelWarpingFunctions
     {
         HertzToMel10,
         HertzToMel
     }
 
+    /// <summary>
+    /// Supported Mel Weighting Functions
+    /// </summary>
     public enum MelWeightingFunctions
     {
         Warping,
         Linear
     }
 
+    /// <summary>
+    /// Class allows the conversion of a standard spectrum to a Mel spectrum
+    /// </summary>
     public class MelBands
     {
+        /// <summary>
+        /// The size of the input spectrum.
+        /// </summary>
         private int spectrumSize;
+
+        /// <summary>
+        /// The number of mel bands to output.
+        /// </summary>
         private int bandsToOutput;
+
+        /// <summary>
+        /// The sample rate of the spectrum.
+        /// </summary>
         private int sampleRate;
+
+        /// <summary>
+        /// The lower frequency bound.
+        /// </summary>
         private float lowFrequencyBound;
+
+        /// <summary>
+        /// The high frequency bound.
+        /// </summary>
         private float highFrequencyBound;
+
+        /// <summary>
+        /// Whether or not to normalize to a unit sum
+        /// </summary>
         private bool unitSum;
+
+        /// <summary>
+        /// Whether or not to log the result
+        /// </summary>
         private bool log;
+
+        /// <summary>
+        /// What units the result should be in.
+        /// </summary>
         private OutputUnits type;
+
+        /// <summary>
+        /// The function used to warp
+        /// </summary>
         private Func<float, float> warpingFunction;
+
+        /// <summary>
+        /// The function used to undo the warp.
+        /// </summary>
         private Func<float, float> inverseWarpingFunction;
+
+        /// <summary>
+        /// The function used to weight.
+        /// </summary>
         private Func<float, float> weightingFunction;
+
+        /// <summary>
+        /// The filter frequencies.
+        /// </summary>
         private float[] filterFrequencies;
+
+        /// <summary>
+        /// The triangular bands used to bin the spectrum.
+        /// </summary>
         TriangularBands triangleBands;
 
         /// <summary>
@@ -95,6 +155,15 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Compute the mel-bands for the spectrum.
+        /// </summary>
+        /// <param name="spectrum">
+        /// The input spectrum.
+        /// </param>
+        /// <returns>
+        /// The mel banded spectrum.
+        /// </returns>
         public float[] Compute(float[] spectrum)
         {
             if (this.triangleBands == null || this.triangleBands.InputSize != spectrum.Length)
@@ -105,6 +174,9 @@ namespace ConvertHero.AudioFileHelpers
             return this.triangleBands.ComputeTriangleBands(spectrum);
         }
 
+        /// <summary>
+        /// Pre-compute the filter frequencies.
+        /// </summary>
         private void CalculateFilterFrequencies()
         {
             int filterSize = this.bandsToOutput;
@@ -122,6 +194,15 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Set the warping/weighting functions depending on user provided properties.
+        /// </summary>
+        /// <param name="warping">
+        /// The type of warping.
+        /// </param>
+        /// <param name="weighting">
+        /// The type of weighting.
+        /// </param>
         private void SetWarpingFunctions(MelWarpingFunctions warping, MelWeightingFunctions weighting)
         {
             if (warping == MelWarpingFunctions.HertzToMel10)

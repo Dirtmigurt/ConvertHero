@@ -1,31 +1,60 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+
+    /// <summary>
+    /// What type of normalization are supported.
+    /// </summary>
     public enum FluxNormalizationMethod
     {
         L1,
         L2
     }
 
+    /// <summary>
+    /// Class that allows computing the flux between subsequent frames of a spectrum.
+    /// </summary>
     public class Flux
     {
+        /// <summary>
+        /// What type of normalization should be used on the output.
+        /// </summary>
         private FluxNormalizationMethod normalizeMethod;
 
-        // HalfRectify == true means only frequency magnitudes that increase (onset) contribute to the spectral flux instead of magnitudes that decrese (offsets)
+        /// <summary>
+        /// HalfRectify == true means only frequency magnitudes that increase (onset) contribute to the spectral flux instead of magnitudes that decrese (offsets)
+        /// </summary>
         private bool halfRectify;
+
+        /// <summary>
+        /// Holds the previous frame which is used to compute the flux between the current and this as previous.
+        /// </summary>
         private float[] previousSpectrum = null;
 
+        /// <summary>
+        /// Initializes a new instance of the Flux class.
+        /// </summary>
+        /// <param name="norm">
+        /// The type of normalization.
+        /// </param>
+        /// <param name="halfRectify">
+        /// Should the output bet half-rectified (ignore negative values).
+        /// </param>
         public Flux(FluxNormalizationMethod norm, bool halfRectify)
         {
             this.normalizeMethod = norm;
             this.halfRectify = halfRectify;
         }
 
+        /// <summary>
+        /// Compute the spectral flux between the input spectrum and the one provided in the previous call to this function.
+        /// </summary>
+        /// <param name="spectrum">
+        /// The new input spectrum.
+        /// </param>
+        /// <returns>
+        /// The flux between the new and previous spectrum.
+        /// </returns>
         public float Compute(float[] spectrum)
         {
             float flux = 0f;

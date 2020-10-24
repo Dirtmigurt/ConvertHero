@@ -1,24 +1,48 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+
     public class FrameCutter
     {
+        /// <summary>
+        /// Buffer contains the ENTIRE signal. Pieces of this array are returned as frames.
+        /// </summary>
         private float[] buffer;
+
+        /// <summary>
+        /// Whether to start the first frame at time 0 (centered at framesize/2) if true, or -framesize/2 otherwise (zero-centered)
+        /// </summary>
         private bool startFromZero = false;
+
+        /// <summary>
+        /// Whether the beginning of the last frame should reach the end of file. only applicable if startFromZero is true.
+        /// </summary>
         private bool lastFrameToEndOfFile = false;
+
+        /// <summary>
+        /// The current index into the buffer[].
+        /// </summary>
         private int startIndex = 0;
+
+        /// <summary>
+        /// The size of the frame returned on each call to GetNextFrame()
+        /// </summary>
         private int frameSize = 1024;
+
+        /// <summary>
+        /// How many samples should be advanced between frames.
+        /// </summary>
         private int hopSize = 512;
+
+        /// <summary>
+        /// What percentage of the frameSize should still be treated as a frame by padding zeros.
+        /// </summary>
         private int validFrameThreshold;
+
+        /// <summary>
+        /// Has this reader reached the end of the buffer?
+        /// </summary>
         private bool lastFrame = false;
-        private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
-        private int currentFrame = 0;
 
         /// <summary>
         /// Class the divides some buffer up into frames and returns them one at a time.
@@ -105,14 +129,23 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Allows the initialization of a framecutter before the entire signal is available.
+        /// </summary>
+        /// <param name="buffer"></param>
         public void SetBuffer(float[] buffer)
         {
             this.buffer = buffer;
             this.startIndex = 0;
             this.lastFrame = false;
-            this.currentFrame = 0;
         }
 
+        /// <summary>
+        /// Return the next chunk of the buffer[].
+        /// </summary>
+        /// <returns>
+        /// Returns the next chunk of the buffer[].
+        /// </returns>
         public float[] GetNextFrame()
         {
             if (this.lastFrame || this.buffer == null || this.buffer.Length == 0)
@@ -150,7 +183,6 @@ namespace ConvertHero.AudioFileHelpers
             if (frameIndex < this.validFrameThreshold)
             {
                 this.lastFrame = true;
-                this.currentFrame++;
                 return null;
             }
 
@@ -192,7 +224,6 @@ namespace ConvertHero.AudioFileHelpers
             }
 
             this.startIndex += this.hopSize;
-            this.currentFrame++;
             return frame;
         }
     }

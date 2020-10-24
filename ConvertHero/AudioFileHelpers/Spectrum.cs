@@ -1,16 +1,17 @@
-﻿using Accord.Audio;
-using MathNet.Numerics;
-using NAudio.Wave;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
-    public class Spectrum
+    using MathNet.Numerics;
+
+    /// <summary>
+    /// Class with helper functions to comput Fourier Operations.
+    /// </summary>
+    public static class Spectrum
     {
+        /// <summary>
+        /// Compute the FFT of a signal and return the Magnitude spectrum
+        /// </summary>
+        /// <param name="signal"></param>
+        /// <returns></returns>
         public static float[] ComputeMagnitudeSpectrum(float[] signal)
         {
             Complex32[] fft = new Complex32[signal.Length];
@@ -32,7 +33,13 @@ namespace ConvertHero.AudioFileHelpers
             return magnitudeSpectrum;
         }
 
-        public static (Complex32[], float[]) ComputeFFTWithMagnitude(float[] signal, int sampleRate = 44100)
+        /// <summary>
+        /// Compute the FFT of a signal and return the Complex spectrum as well as a copy of the Magnitudes spectrum
+        /// </summary>
+        /// <param name="signal"></param>
+        /// <param name="sampleRate"></param>
+        /// <returns></returns>
+        public static (Complex32[], float[]) ComputeFFTWithMagnitude(float[] signal)
         {
             Complex32[] fft = new Complex32[signal.Length];
             for (int i = 0; i < signal.Length; i++)
@@ -53,7 +60,12 @@ namespace ConvertHero.AudioFileHelpers
             return (fft, magnitudeSpectrum);
         }
 
-        public static Complex32[] ComputeFFT(float[] signal, int sampleRate = 44100)
+        /// <summary>
+        /// Compute the FFT of a signal.
+        /// </summary>
+        /// <param name="signal"></param>
+        /// <returns></returns>
+        public static Complex32[] ComputeFFT(float[] signal)
         {
             Complex32[] fft = new Complex32[signal.Length];
             for (int i = 0; i < signal.Length; i++)
@@ -67,6 +79,17 @@ namespace ConvertHero.AudioFileHelpers
             return fft;
         }
 
+        /// <summary>
+        /// Compute the Inverse FFT of a spectrum.
+        /// </summary>
+        /// <param name="fft">
+        /// The input spectrum
+        /// </param>
+        /// <param name="normalize">
+        /// Should the output signal be normalized?
+        /// </param>
+        /// <returns>
+        /// </returns>
         public static float[] ComputeIFFT(Complex32[] fft, bool normalize = false)
         {
             Complex32[] temp = new Complex32[fft.Length];

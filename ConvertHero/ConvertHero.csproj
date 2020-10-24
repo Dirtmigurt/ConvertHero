@@ -15,6 +15,9 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -27,11 +30,8 @@
     <MapFileExtensions>true</MapFileExtensions>
     <ApplicationRevision>0</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -159,7 +159,6 @@
     <Compile Include="AudioFileHelpers\SpectralPeaks.cs" />
     <Compile Include="AudioFileHelpers\Spectrum.cs" />
     <Compile Include="AudioFileHelpers\SuperFlux.cs" />
-    <Compile Include="AudioFileHelpers\TempoScaleBands.cs" />
     <Compile Include="AudioFileHelpers\TempoTapDegara.cs" />
     <Compile Include="AudioFileHelpers\TempoTapMaxAgreement.cs" />
     <Compile Include="AudioFileHelpers\TriangularBands.cs" />
@@ -169,7 +168,6 @@
     <Compile Include="CNTKModels\LSTMWithAttention.cs" />
     <Compile Include="CNTKModels\RecurrentConvolutionalNeuralNetwork.cs" />
     <Compile Include="CNTKModels\TestHelper.cs" />
-    <Compile Include="CNTKModels\WeightedError.cs" />
     <Compile Include="TrainingWindow.xaml.cs">
       <DependentUpon>TrainingWindow.xaml</DependentUpon>
     </Compile>

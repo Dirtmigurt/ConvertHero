@@ -1,15 +1,22 @@
-﻿using MathNet.Numerics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using MathNet.Numerics;
+
+    /// <summary>
+    /// Class for converting comlex numbers to Polar notation (a + bi) => r(theta)
+    /// </summary>
     public static class CartesianToPolar
     {
-        public static (float[] Magnitude, float[] Phase) ConvertComplexToPolar(Complex32[] complexSignal, bool ignoreDrums = true)
+        /// <summary>
+        /// Convert a list of complex numbers into their component magnitudes and phases.
+        /// </summary>
+        /// <param name="complexSignal">
+        /// The input list of complex numbers.
+        /// </param>
+        /// <returns>
+        /// The magnitude and phase angle of each of the input numbers.
+        /// </returns>
+        public static (float[] Magnitude, float[] Phase) ConvertComplexToPolar(Complex32[] complexSignal)
         {
 
             float[] Magnitude = new float[complexSignal.Length];

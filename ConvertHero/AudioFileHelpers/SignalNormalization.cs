@@ -1,13 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
-    public class SignalNormalization
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+
+    /// <summary>
+    /// Class that contains helper methods for different kinds of normalization
+    /// </summary>
+    public static class SignalNormalization
     {
+        /// <summary>
+        /// Normalize within a window along the signal. (hop size = 1)
+        /// </summary>
+        /// <param name="signal">
+        /// An input signal
+        /// </param>
+        /// <param name="window">
+        /// Window size.
+        /// </param>
+        /// <returns></returns>
         public static List<float> WindowNormalize(List<float> signal, int window)
         {
             List<float> output = new List<float>();
@@ -46,6 +57,10 @@ namespace ConvertHero.AudioFileHelpers
             return output;
         }
 
+        /// <summary>
+        /// Subtract the signal mean from each sample and then normalize it to [0, 1]
+        /// </summary>
+        /// <param name="signal"></param>
         public static void MeanCenterNormalize(List<float> signal)
         {
             float mean = signal.Average();
@@ -63,6 +78,10 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Subtract the signal mean from each sample and then normalize it to [0, 1]
+        /// </summary>
+        /// <param name="signal"></param>
         public static void MeanCenterNormalize(float[] signal)
         {
             float mean = signal.Average();
@@ -80,6 +99,10 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Normalize a signal by dividing each elemeny by the max.
+        /// </summary>
+        /// <param name="signal"></param>
         public static void Normalize(float[] signal)
         {
             float max = Math.Max(float.Epsilon, signal.Max());
@@ -89,6 +112,10 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Normalize a signal by dividing each elemeny by the max.
+        /// </summary>
+        /// <param name="signal"></param>
         public static void Normalize(List<float> signal)
         {
             float max = Math.Max(float.Epsilon, signal.Max());
@@ -98,6 +125,11 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Subtract the signal median from each sample and then normalize it to [0, 1].
+        /// This version clips the top 5th percentile of samples to 1.
+        /// </summary>
+        /// <param name="signal"></param>
         public static void MedianCenterNormalize(List<float> signal)
         {
             List<float> ordered = signal.Where(f => f > float.Epsilon).OrderBy(f => f).ToList();
@@ -121,6 +153,11 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Subtract the signal median from each sample and then normalize it to [0, 1].
+        /// This version clips the top 5th percentile of samples to 1.
+        /// </summary>
+        /// <param name="signal"></param>
         public static void MedianCenterNormalize(float[] signal)
         {
             List<float> ordered = signal.OrderBy(f => f).ToList();
@@ -144,6 +181,10 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Only normalize peaks that meet a certain threshold.
+        /// </summary>
+        /// <param name="signal"></param>
         public static void PeakNormalize(List<float> peaks, float percentOfPeaksToDrop = 10)
         {
             List<float> ordered = peaks.Where(f => f > float.Epsilon).OrderBy(f => f).ToList();
@@ -163,6 +204,21 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Compute a histogram for a list of values.
+        /// </summary>
+        /// <param name="values">
+        /// The list of values to count.
+        /// </param>
+        /// <param name="bins">
+        /// The number of bins in the histogram.
+        /// </param>
+        /// <param name="percentBottomBinsToDrop">
+        /// How many of the bottom bins should we ignore.
+        /// </param>
+        /// <returns>
+        /// a histogram.
+        /// </returns>
         public static float[] ComputeHistogram(List<float> values, int bins = 100, double percentBottomBinsToDrop = 5)
         {
             MeanCenterNormalize(values);

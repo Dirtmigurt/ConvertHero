@@ -1,41 +1,140 @@
-﻿using MathNet.Numerics;
-using NAudio.Wave;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using MathNet.Numerics;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+
+    /// <summary>
+    /// Class that can compute onset detections using InfoGain or BeatEmphasis
+    /// </summary>
     public class OnsetDetectionGlobal
     {
+        /// <summary>
+        /// Half the size of the smoothing window
+        /// </summary>
         private const int smoothingWindowHalfSize = 8;
+
+        /// <summary>
+        /// The sample rate of the audio signal
+        /// </summary>
         private float sampleRate;
+
+        /// <summary>
+        /// The desired onset method (Infogain/BeatEmphasis)
+        /// </summary>
         private OnsetMethod method;
+
+        /// <summary>
+        /// The frame size used when reading chunks of the input signal
+        /// </summary>
         private int frameSize;
+
+        /// <summary>
+        /// The hop size of each frame when reading the input signal.
+        /// </summary>
         private int hopSize;
 
+        /// <summary>
+        /// The min frequency bin
+        /// </summary>
         private int minFrequencyBin;
+
+        /// <summary>
+        /// the max frequency bin
+        /// </summary>
         private int maxFrequencyBin;
+
+        /// <summary>
+        /// the number of FFTBins.
+        /// </summary>
         private int numberFFTBins;
+
+        /// <summary>
+        /// The number of ERBBands
+        /// </summary>
         private int numberERBBands;
+
+        /// <summary>
+        /// The size of the histogram.
+        /// </summary>
         private int histogramSize = 5;
+
+        /// <summary>
+        /// The size of the buffer.
+        /// </summary>
         private int bufferSize = 11;
+
+        /// <summary>
+        /// The maximum period for the onset detection function
+        /// </summary>
         private int maxPeriodODF;
+
+        /// <summary>
+        /// The weights for the onset detection function
+        /// </summary>
         private List<float> weights = new List<float>();
+
+        /// <summary>
+        /// A reversed copy of the weights.
+        /// </summary>
         private List<float> rweights = new List<float>();
 
+        /// <summary>
+        /// Used to store past phase values
+        /// </summary>
         private float[] phase1;
+
+        /// <summary>
+        /// Used to store even further past phase values
+        /// </summary>
         private float[] phase2;
+
+        /// <summary>
+        /// Used to store pas magnitude values
+        /// </summary>
         private float[] spectrum1;
 
+        /// <summary>
+        /// Utility utsed to break the input signal into frames.
+        /// </summary>
         private FrameCutter frameCutter;
+
+        /// <summary>
+        /// Applies windowing functions to a frame.
+        /// </summary>
         private Windowing windower;
+
+        /// <summary>
+        /// Computes the ERBBands of a frame.
+        /// </summary>
         private ERBBands erbbands;
+
+        /// <summary>
+        /// Computes the moving averagte of any input signal.
+        /// </summary>
         private MovingAverage movingAverage;
+
+        /// <summary>
+        /// Computes the auto-correlation of any input signal.
+        /// </summary>
         private AutoCorrelation autoCorrelation;
 
+        /// <summary>
+        /// Initialize a new instance of the OnsetDetectionGlobal class.
+        /// </summary>
+        /// <param name="sampleRate">
+        /// The sample rate of the audio signal.
+        /// </param>
+        /// <param name="method">
+        /// Which onset detection method should be used.
+        /// </param>
+        /// <param name="frameSize">
+        /// The size of frame when reading the audio signal.
+        /// </param>
+        /// <param name="hopSize">
+        /// How many samples should the FrameCutter advance between frames.
+        /// </param>
         public OnsetDetectionGlobal(float sampleRate, OnsetMethod method = OnsetMethod.Infogain, int frameSize = 2048, int hopSize = 512)
         {
             this.sampleRate = sampleRate;
@@ -81,6 +180,15 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Compute the specified onset method and return the onsets found.
+        /// </summary>
+        /// <param name="signal">
+        /// The input audio signal.
+        /// </param>
+        /// <returns>
+        /// The onsets detected in the signal.
+        /// </returns>
         public float[] Compute(float[] signal)
         {
             if (signal == null || signal.Length == 0)
@@ -102,6 +210,12 @@ namespace ConvertHero.AudioFileHelpers
             return new float[signal.Length];
         }
 
+        /// <summary>
+        /// Compute onsets using the infogain algorithm.
+        /// </summary>
+        /// <returns>
+        /// A list of values indicating how likely that frame was to contain an onset.
+        /// </returns>
         private float[] ComputeInfogain()
         {
             // Initialize buffer with zero filled lists.
@@ -175,6 +289,12 @@ namespace ConvertHero.AudioFileHelpers
             return onsetDetections.ToArray();
         }
 
+        /// <summary>
+        /// Compute onsets using the beat emphasis algorithm.
+        /// </summary>
+        /// <returns>
+        /// A list of values indicating how likely that frame was to contain an onset.
+        /// </returns>
         private float[] ComputeBeatEmphasis()
         {
             float[] onsetDetections;
@@ -371,6 +491,9 @@ namespace ConvertHero.AudioFileHelpers
         }
     }
 
+    /// <summary>
+    /// Supported onset methods
+    /// </summary>
     public enum OnsetMethod
     {
         Infogain,

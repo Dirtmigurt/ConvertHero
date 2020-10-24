@@ -120,7 +120,21 @@
                         <TextBox Name="AudioFileTextBox" Grid.Column="0" IsEnabled="False" Margin="5" Padding="5" />
                         <Button Name="btnOpenAudio" Grid.Column="1" Margin="5" Padding="5" Click="BtnOpenAudio_Click">Open Audio File</Button>
                     </Grid>
-                    <Button Name="startMagicButton" Content="Generate Chart From Audio" IsEnabled="False" Height="50" Margin="5" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*" />
+                            <ColumnDefinition Width="1*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="1*" />
+                            <RowDefinition Height="1*" />
+                        </Grid.RowDefinitions>
+                        <TextBox Name="MinTempoTextBox" Grid.Column="0" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" />
+                        <TextBox Name="MaxTempoTextBox" Grid.Column="1" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" />
+                        <Label Name="MinTempoLabel" Content="Minimum Tempo" Grid.Column="0" Grid.Row="1" />
+                        <Label Name="MaxTempoLabel" Content="Maximum Tempo" Grid.Column="1" Grid.Row="1" />
+                    </Grid>
+                    <Button Name="convertAudioButton" Content="Generate Tempo Track From Audio" IsEnabled="False" Height="50" Margin="5" Click="BtnConvertAudio_Click" />
                     <DockPanel>
                         <StatusBar DockPanel.Dock="Bottom" HorizontalAlignment="Stretch">
                             <StatusBar.ItemsPanel>
@@ -128,18 +142,18 @@
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="*"/>
+                                            <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="4*"/>
                                         </Grid.ColumnDefinitions>
                                     </Grid>
                                 </ItemsPanelTemplate>
                             </StatusBar.ItemsPanel>
                             <StatusBarItem>
-                                <TextBlock>Ready.</TextBlock>
+                                <TextBlock Name="StatusText">Ready.</TextBlock>
                             </StatusBarItem>
-                            <StatusBarItem Grid.Column="1" HorizontalContentAlignment="Stretch">
+                            <StatusBarItem Grid.Row="1" HorizontalContentAlignment="Stretch">
                                 <ProgressBar Name="ConversionProgress" Value="0" Height="15"/>
                             </StatusBarItem>
                         </StatusBar>

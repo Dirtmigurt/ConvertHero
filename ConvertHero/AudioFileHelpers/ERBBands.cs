@@ -1,12 +1,8 @@
-﻿using MathNet.Numerics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using MathNet.Numerics;
+    using System;
+
     /// <summary>
     /// This algorithm computes energies/magnitudes in ERB bands of a spectrum. 
     /// The Equivalent Rectangular Bandwidth (ERB) scale is used. 
@@ -20,17 +16,54 @@ namespace ConvertHero.AudioFileHelpers
     /// </summary>
     public class ERBBands
     {
+        /// <summary>
+        /// EarQ constant
+        /// </summary>
         private const float EarQ = 9.26449f;
+
+        /// <summary>
+        /// MinBandwidth constant
+        /// </summary>
         private const float MinBW = 24.7f;
 
+        /// <summary>
+        /// The size of the input spectrum.
+        /// </summary>
         private int inputSize;
+
+        /// <summary>
+        /// The number of ERBBands.
+        /// </summary>
         private int numberBands;
+
+        /// <summary>
+        /// The sample rate of the input signal.
+        /// </summary>
         private float sampleRate;
+
+        /// <summary>
+        /// The lower frequency bound.
+        /// </summary>
         private float lowFrequencyBound;
+
+        /// <summary>
+        /// The high frequency bound.
+        /// </summary>
         private float highFrequencyBound;
+
+        /// <summary>
+        /// The width of the ERB Band.
+        /// </summary>
         private float width;
+
+        /// <summary>
+        /// The unit type of the input spectrum (Power/Magnitude)
+        /// </summary>
         private SpectrumType type;
 
+        /// <summary>
+        /// The frequencies in the filters.
+        /// </summary>
         private float[] filterFrequencies;
 
         /// <summary>
@@ -89,6 +122,9 @@ namespace ConvertHero.AudioFileHelpers
             this.CreateFilters(this.inputSize);
         }
 
+        /// <summary>
+        /// Precompute the filter frequencies.
+        /// </summary>
         private void CalculateFilterFrequencies()
         {
             int filterSize = this.numberBands;
@@ -178,7 +214,7 @@ namespace ConvertHero.AudioFileHelpers
         }
 
         /// <summary>
-        /// 
+        /// Actually perform the work on the input spectrum.
         /// </summary>
         /// <param name="spectrum">
         /// The audio spectrum.
@@ -222,6 +258,9 @@ namespace ConvertHero.AudioFileHelpers
         }
     }
 
+    /// <summary>
+    /// The unit type of the input spectrum.
+    /// </summary>
     public enum SpectrumType
     {
         Magnitude,

@@ -8,30 +8,104 @@ namespace ConvertHero.AudioFileHelpers
 {
     public class PitchContoursMelody
     {
+        /// <summary>
+        /// The moving averager
+        /// </summary>
         MovingAverage MovingAverage;
-        FrameCutter FrameCutter;
+
+        /// <summary>
+        /// The windower
+        /// </summary>
         Windowing Windower;
+
+        /// <summary>
+        /// A peak detector
+        /// </summary>
         SpectralPeaks PeakDetector;
 
+        /// <summary>
+        /// salience function bin resolution [cents]
+        /// </summary>
         float binResolution;
+
+        /// <summary>
+        /// the reference frequency for Hertz to cent convertion [Hz], corresponding to the 0th cent bin
+        /// </summary>
         float referenceFrequency;
+
+        /// <summary>
+        /// allowed deviation below the average contour mean salience of all contours (fraction of the standard deviation)
+        /// </summary>
         float voicingTolerance;
+
+        /// <summary>
+        /// detect voice vibrato
+        /// </summary>
         bool voiceVibrato;
+
+        /// <summary>
+        /// the sampling rate of the audio signal (Hz)
+        /// </summary>
         float sampleRate;
+
+        /// <summary>
+        /// the hop size with which the pitch salience function was computed
+        /// </summary>
         int hopSize;
-        int filterIterations; // number of iterations in the octave errors/pitch outliers filtering process
+
+        /// <summary>
+        /// number of iterations in the octave errors/pitch outliers filtering process
+        /// </summary>
+        int filterIterations;
+
+        /// <summary>
+        /// Estimate pitch for non-voiced segments by using non-salient contours when no salient ones are present in a frame
+        /// </summary>
         bool guessUnvoiced;
 
+        /// <summary>
+        /// The duration of a frame.
+        /// </summary>
         float frameDuration;
+
+        /// <summary>
+        /// The number of frames in the signal
+        /// </summary>
         int numberFrames;
+
+        /// <summary>
+        /// Number of indices the averager shifts the array by.
+        /// </summary>
         int averagerShift;
+
+        /// <summary>
+        /// The maximum distance for an outlier.
+        /// </summary>
         float outlierMaxDistance;
+
+        /// <summary>
+        /// The maximum distance for a duplicate.
+        /// </summary>
         float duplicateMaxDistance;
+
+        /// <summary>
+        /// The minimum distance for a duplicate.
+        /// </summary>
         float duplicateMinDistance;
 
+        /// <summary>
+        /// The standard deviation for vibrato.
+        /// </summary>
         float vibratoPitchStdDev;
 
+        /// <summary>
+        /// The minimum bin.
+        /// </summary>
         float minBin;
+
+        /// <summary>
+        /// The maximum bin.
+        /// </summary>
         float maxBin;
 
         // Voice vibrato detection parameters
@@ -44,6 +118,9 @@ namespace ConvertHero.AudioFileHelpers
         float vibratoDBDropLobe;
         float vibratoDBDropSecondPeak;
 
+        /// <summary>
+        /// The base of the Math.Pow function used when converting cent to Hertz
+        /// </summary>
         float centToHertzBase;
 
         int[] contoursStartIndices;
@@ -105,7 +182,17 @@ namespace ConvertHero.AudioFileHelpers
         /// <param name="maxFrequency">
         /// the minimum allowed frequency for salience function peaks (ignore contours with peaks above) [Hz]
         /// </param>
-        public PitchContoursMelody(float referenceFrequency = 55, float binResolution = 10, float sampleRate = 44100, int hopSize = 128, float voicingTolerance = 0.2f, bool voiceVibrato = false, int filterIterations = 3, bool guessUnvoiced = false, float minFrequency = 80, float maxFrequency = 20000)
+        public PitchContoursMelody(
+            float referenceFrequency = 55, 
+            float binResolution = 10, 
+            float sampleRate = 44100, 
+            int hopSize = 128, 
+            float voicingTolerance = 0.2f, 
+            bool voiceVibrato = false, 
+            int filterIterations = 3, 
+            bool guessUnvoiced = false, 
+            float minFrequency = 80, 
+            float maxFrequency = 20000)
         {
             this.voicingTolerance = voicingTolerance;
             this.sampleRate = sampleRate;
@@ -156,6 +243,25 @@ namespace ConvertHero.AudioFileHelpers
             this.PeakDetector = new SpectralPeaks(vibratoSampleRate, 3, type: OrderByType.Amplitude);
         }
 
+        /// <summary>
+        /// Compute the melody from pitch contours.
+        /// </summary>
+        /// <param name="contoursBins">
+        /// array of frame-wise vectors of cent bin values representing each contour
+        /// </param>
+        /// <param name="contoursSaliences">
+        /// array of frame-wise vectors of pitch saliences representing each contour
+        /// </param>
+        /// <param name="contoursStartTimes">
+        /// array of the start times of each contour [s]
+        /// </param>
+        /// <param name="duration">
+        /// time duration of the input signal [s]
+        /// </param>
+        /// <returns>
+        /// pitch = vector of estimated pitch values (i.e., melody) [Hz]
+        /// pitchConfidence = confidence with which the pitch was detected
+        /// </returns>
         public (float[] pitch, float[] pitchConfidence) Compute(List<float[]> contoursBins, List<float[]> contoursSaliences, float[] contoursStartTimes, float duration)
         {
             List<float> pitch = new List<float>();
@@ -286,6 +392,12 @@ namespace ConvertHero.AudioFileHelpers
             return (pitch.ToArray(), pitchConfidence.ToArray());
         }
 
+        /// <summary>
+        /// Detect voicing in each contour if enabled.
+        /// </summary>
+        /// <param name="contoursBins"></param>
+        /// <param name="contoursSaliences"></param>
+        /// <param name="contoursStartTimes"></param>
         private void VoicingDetection(List<float[]> contoursBins, List<float[]> contoursSaliences, float[] contoursStartTimes)
         {
             this.contoursStartIndices = new int[this.numberContours];
@@ -570,6 +682,9 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Remove contour duplicates
+        /// </summary>
         private void RemoveContourDuplicates()
         {
             // each iteration we start with all contours that passed the voiding detection stage,
@@ -616,11 +731,12 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        ///   compute average melody pitch mean on the intervals corresponding to all contour
+        ///   remove pitch outliers by deleting contours at a distance more that one octave from melody pitch mean
+        /// </summary>
         private void RemovePitchOutliers()
         {
-            // compute average melody pitch mean on the intervals corresponding to all contour
-            // remove pitch outliers by deleting contours at a distance more that one octave from melody pitch mean
-
             //foreach(int ii in this.contoursSelected)
             for(int i = 0; i < this.contoursSelected.Count;)
             {

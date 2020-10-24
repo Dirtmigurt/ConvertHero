@@ -1,17 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+    using System.Collections.Generic;
+
+    /// <summary>
+    /// This class allows reading of multiple audio files and merging their samples into a single stream.
+    /// </summary>
     public class MultiFileSampleReader : IDisposable
     {
+        /// <summary>
+        /// The size of a window into the signal.
+        /// </summary>
         public int windowSizeSamples;
+
+        /// <summary>
+        /// the sample rate of the audio files.
+        /// </summary>
         public int SampleRate = -1;
+
+        /// <summary>
+        /// The readers responsible for reading each individual file.
+        /// </summary>
         private List<SampleReader> readers = new List<SampleReader>();
 
+        /// <summary>
+        /// Create a new instance of the MultFileSampleReader
+        /// </summary>
+        /// <param name="audioFiles">
+        /// The List of audio files to read.
+        /// </param>
+        /// <param name="frameRate">
+        /// How many frames/sec should the sampling be done at.
+        /// At a sample rate of 44100, a frame rate of 100 means that each window advances 44100/100 => 441 samples
+        /// </param>
+        /// <param name="samplesPerWindow">
+        /// How wide should the window into the signal be.
+        /// </param>
         public MultiFileSampleReader(List<string> audioFiles, int frameRate, int samplesPerWindow)
         {
             windowSizeSamples = samplesPerWindow;
@@ -29,6 +53,9 @@ namespace ConvertHero.AudioFileHelpers
             }
         }
 
+        /// <summary>
+        /// Clean up all resources consumed by the SampleReader instances.
+        /// </summary>
         public void Dispose()
         {
             foreach(SampleReader reader in readers)
@@ -42,6 +69,15 @@ namespace ConvertHero.AudioFileHelpers
             readers.Clear();
         }
 
+        /// <summary>
+        /// Get the next window from each of the sample reader instances.
+        /// </summary>
+        /// <param name="buffer">
+        /// the array to put the samples into.
+        /// </param>
+        /// <returns>
+        /// The number of samples read.
+        /// </returns>
         public int Read(out float[] buffer)
         {
             buffer = new float[this.windowSizeSamples];

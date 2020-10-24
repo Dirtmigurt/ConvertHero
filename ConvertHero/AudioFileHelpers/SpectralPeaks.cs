@@ -1,35 +1,37 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    /// <summary>
+    /// Class that can find the peaks of a spectrum
+    /// </summary>
     public class SpectralPeaks
     {
-        private float sampleRate;
-        private int maxPeaks;
-        private float maxFrequency;
-        private float minFrequency;
-        private float magnitudeThreshold;
-        private OrderByType orderByType;
+        /// <summary>
+        /// The peak detector that does all the work.
+        /// </summary>
         private PeakDetection peakDetector;
+
+        /// <summary>
+        /// Initializes a new instance of the SpectralPeaks class.
+        /// </summary>
+        /// <param name="sampleRate">The sample rate of the audio file.</param>
+        /// <param name="maxPeaks">The maximum number of peaks to find.</param>
+        /// <param name="maxFrequency">The maximum frequency to look for peaks in</param>
+        /// <param name="minFrequency">The minimum frequency to look for peaks in</param>
+        /// <param name="magnitudeThreshold">The threhold that all peaks must meet.</param>
+        /// <param name="type">How should the output be ordered</param>
         public SpectralPeaks(float sampleRate = 44100, int maxPeaks = 100, float maxFrequency = 5000, float minFrequency = 55, float magnitudeThreshold = 0, OrderByType type = OrderByType.Amplitude)
         {
-            this.sampleRate = sampleRate;
-            this.maxPeaks = maxPeaks;
-            this.maxFrequency = maxFrequency;
-            this.minFrequency = minFrequency;
-            this.magnitudeThreshold = magnitudeThreshold;
-            this.orderByType = type;
-            this.peakDetector = new PeakDetection(this.minFrequency, this.maxFrequency, this.magnitudeThreshold, this.maxPeaks, this.sampleRate / 2f, true, this.orderByType);
+            this.peakDetector = new PeakDetection(minFrequency, maxFrequency, magnitudeThreshold, maxPeaks, sampleRate / 2f, true, type);
         }
 
-        public (float[] frequencies, float[] magnitudes) Compute(float[] spectrum)
+        /// <summary>
+        /// Compute the spectral peaks.
+        /// </summary>
+        /// <param name="spectrum">The input spectrum.</param>
+        /// <returns>The peak positions and amplitudes</returns>
+        public (float[] positions, float[] amplitudes) Compute(float[] spectrum)
         {
-            (float[] positions, float[] amplitudes) = this.peakDetector.Compute(spectrum);
-            return (positions, amplitudes);
+            return this.peakDetector.Compute(spectrum);
         }
     }
 

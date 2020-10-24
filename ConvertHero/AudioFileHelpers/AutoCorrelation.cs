@@ -1,13 +1,8 @@
-﻿using MathNet.Numerics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Media.Animation;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using MathNet.Numerics;
+    using System;
+
     /// <summary>
     /// "This algorithm computes the autocorrelation vector of a signal.
     /// It uses the version most commonly used in signal processing, which doesn't remove "
@@ -24,9 +19,35 @@ namespace ConvertHero.AudioFileHelpers
     /// </summary>
     public class AutoCorrelation
     {
+        /// <summary>
+        /// Bool indicating whether or not the output should be normalized.
+        /// </summary>
         private bool unbiasedNormalization = false;
+
+        /// <summary>
+        /// Bool indicating what operations to take on the intermediary FFT before computing the inverse. 
+        /// </summary>
         private bool generalized = false;
+
+        /// <summary>
+        /// How much compression should be done on the frequency domain.
+        /// This float corresponds to the exponent in a Math.Pow() call when generalized == true
+        /// </summary>
         private float frequencyDomainCompression = 0.5f;
+
+        /// <summary>
+        /// Creates a new object that can compute the autocorrelation of a signal.
+        /// </summary>
+        /// <param name="normalize">
+        /// Whether or not the output should be normalized and unbiased.
+        /// </param>
+        /// <param name="generalized">
+        /// Determines which operation to apply to intermediary FFT.
+        /// </param>
+        /// <param name="frequencyDomainCompression">
+        /// How much compression should be done on the frequency domain.
+        /// This float corresponds to the exponent in a Math.Pow() call when generalized == true
+        /// </param>
         public AutoCorrelation(NormalizeType normalize = NormalizeType.Standard, bool generalized = false, float frequencyDomainCompression = 0.5f)
         {
             this.unbiasedNormalization = normalize == NormalizeType.Unbiased;
@@ -34,6 +55,16 @@ namespace ConvertHero.AudioFileHelpers
             this.frequencyDomainCompression = frequencyDomainCompression;
         }
 
+        /// <summary>
+        /// Computes the autocorrelation of the signal.
+        /// https://en.wikipedia.org/wiki/Autocorrelation
+        /// </summary>
+        /// <param name="signal">
+        /// The signal.
+        /// </param>
+        /// <returns>
+        /// The correlation array.
+        /// </returns>
         public float[] Compute(float[] signal)
         {
             if (signal == null || signal.Length == 0)
@@ -75,6 +106,9 @@ namespace ConvertHero.AudioFileHelpers
         }
     }
 
+    /// <summary>
+    /// Enum used to identify the normalizaiton type used by the AutoCorrelation class.
+    /// </summary>
     public enum NormalizeType
     {
         Standard,

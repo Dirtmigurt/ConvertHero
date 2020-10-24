@@ -1,11 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+
+    /// <summary>
+    /// The supported types of weighting
+    /// </summary>
     public enum WeightType
     {
         Flat,
@@ -18,18 +19,49 @@ namespace ConvertHero.AudioFileHelpers
         InverseQuadratic,
         Hybrid
     }
+
+    /// <summary>
+    /// Class that allows computing the novelty curve of a signal.
+    /// </summary>
     public class NoveltyCurve
     {
+        /// <summary>
+        /// The type of weighting to apply
+        /// </summary>
         private WeightType type;
 
+        /// <summary>
+        /// Whether or not the result should be normalized.
+        /// </summary>
         private bool normalize;
 
+        /// <summary>
+        /// The frame rate the signal should be sampled at.
+        /// </summary>
         private int frameRate;
 
+        /// <summary>
+        /// the mean size.
+        /// </summary>
         private int meanSize;
 
+        /// <summary>
+        /// The weight curve computed based on the weight type.
+        /// </summary>
         private float[] weightCurve = null;
 
+        /// <summary>
+        /// Initializes a new instance of the NoveltyCurve class.
+        /// </summary>
+        /// <param name="type">
+        /// The weighting type.
+        /// </param>
+        /// <param name="frameRate">
+        /// The frame rate.
+        /// </param>
+        /// <param name="normalize">
+        /// whether or not the output should be normalized.
+        /// </param>
         public NoveltyCurve(WeightType type, int frameRate, bool normalize)
         {
             this.type = type;
@@ -38,6 +70,15 @@ namespace ConvertHero.AudioFileHelpers
             this.meanSize = (int)Math.Max(2, 0.1 * this.frameRate);
         }
 
+        /// <summary>
+        /// Compute the novelty of all of the frames.
+        /// </summary>
+        /// <param name="frames">
+        /// The input frames
+        /// </param>
+        /// <returns>
+        /// The novelty of each frame.
+        /// </returns>
         public float[] ComputeAll(List<float[]> frames)
         {
             int nFrames = frames.Count;
@@ -105,6 +146,18 @@ namespace ConvertHero.AudioFileHelpers
             return av.Compute(novelty);
         }
 
+        /// <summary>
+        /// Compute teh weight curve based on the type and size.
+        /// </summary>
+        /// <param name="size">
+        /// The size of the weight curve.
+        /// </param>
+        /// <param name="type">
+        /// The type of weight curve.
+        /// </param>
+        /// <returns>
+        /// The weight curve.
+        /// </returns>
         private float[] GetWeightCurve(int size, WeightType type)
         {
             float[] result = new float[size];
@@ -181,6 +234,21 @@ namespace ConvertHero.AudioFileHelpers
             return result;
         }
 
+        /// <summary>
+        /// Compute the novelty of a single frame.
+        /// </summary>
+        /// <param name="input">
+        /// The input frame.
+        /// </param>
+        /// <param name="scalar">
+        /// Scales the log of the input frame.
+        /// </param>
+        /// <param name="meanSize">
+        /// size of the mean.
+        /// </param>
+        /// <returns>
+        /// Novelty of the frame.
+        /// </returns>
         private float[] NoveltyFunction(float[] input, int scalar, int meanSize)
         {
             int size = input.Length;

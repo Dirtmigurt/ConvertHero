@@ -1,19 +1,43 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
+    using System.Collections.Generic;
+
+    /// <summary>
+    /// A fancier version of the Flux spectral onset detector.
+    /// </summary>
     public class SuperFlux
     {
+        /// <summary>
+        /// The bin width of the max filter.
+        /// </summary>
         int binWidth = 0;
+
+        /// <summary>
+        /// Whether or not the max filter is causal.
+        /// </summary>
         bool causal = false;
+
+        /// <summary>
+        /// The width of a frame.
+        /// </summary>
         int frameWidth = 0;
+
+        /// <summary>
+        /// The previous frames passed into compute.
+        /// </summary>
         List<float[]> bands = new List<float[]>();
+
+        /// <summary>
+        /// The Max Filter.
+        /// </summary>
         MaxFilter maxFilter;
 
+        /// <summary>
+        /// Initializes a new instance of the SuperFlux class.
+        /// </summary>
+        /// <param name="binWidth">The bin width of the max filter.</param>
+        /// <param name="frameWidth">The width of a frame</param>
+        /// <param name="causal">Whether or not the max filter is causal</param>
         public SuperFlux(int binWidth, int frameWidth, bool causal = false)
         {
             this.binWidth = binWidth;
@@ -21,7 +45,16 @@ namespace ConvertHero.AudioFileHelpers
             this.causal = causal;
             this.maxFilter = new MaxFilter(this.binWidth, this.causal);
         }
-
+        
+        /// <summary>
+        /// Compute the difference between this band the the previous bands in the frame.
+        /// </summary>
+        /// <param name="newBand">
+        /// The new band (also called frame/window)
+        /// </param>
+        /// <returns>
+        /// An indication of how different this band is that the previous ones.
+        /// </returns>
         public float Compute(float[] newBand)
         {
             this.bands.Add(newBand);
