@@ -16,11 +16,6 @@
     public class SimpleOnsetDetectors
     {
         /// <summary>
-        /// The audio file sample rate
-        /// </summary>
-        private float sampleRate;
-
-        /// <summary>
         /// Are we on the first frame?
         /// </summary>
         private bool firstFrame = true;

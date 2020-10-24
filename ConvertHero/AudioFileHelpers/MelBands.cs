@@ -146,6 +146,7 @@
             this.highFrequencyBound = highFrequencyBound;
             this.unitSum = unitSum;
             this.log = log;
+            this.type = type;
             this.SetWarpingFunctions(warping, weighting);
             this.CalculateFilterFrequencies();
 
