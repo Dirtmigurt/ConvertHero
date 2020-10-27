@@ -100,7 +100,7 @@
     <Reference Include="NVorbis, Version=0.8.6.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\NVorbis.0.8.6\lib\net35\NVorbis.dll</HintPath>
     </Reference>
-	<Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net461\System.ValueTuple.dll</HintPath>
     </Reference>
     <Reference Include="System" />
@@ -158,7 +158,9 @@
     <Compile Include="AudioFileHelpers\SpectralCentroid.cs" />
     <Compile Include="AudioFileHelpers\SpectralPeaks.cs" />
     <Compile Include="AudioFileHelpers\Spectrum.cs" />
-    <Compile Include="AudioFileHelpers\SuperFlux.cs" />
+    <Compile Include="AudioFileHelpers\SuperFluxExtractor.cs" />
+    <Compile Include="AudioFileHelpers\SuperFluxNovelty.cs" />
+    <Compile Include="AudioFileHelpers\SuperFluxPeaks.cs" />
     <Compile Include="AudioFileHelpers\TempoTapDegara.cs" />
     <Compile Include="AudioFileHelpers\TempoTapMaxAgreement.cs" />
     <Compile Include="AudioFileHelpers\TriangularBands.cs" />

@@ -741,20 +741,18 @@
         private void BtnConvertAudio_Click(object sender, RoutedEventArgs e)
         {
             // Validate the tempo text boxes contain number and they are normal
-            string minText = this.MinTempoTextBox.Text;
-            string maxText = this.MaxTempoTextBox.Text;
+            string guessText = this.TempoGuessTextBox.Text;
+            string errorText = this.TempoErrorTextBox.Text;
             bool parseFailure = false;
-            if (!float.TryParse(minText, out float minTempo))
+            if (!float.TryParse(guessText, out float guessTempo))
             {
-                this.MinTempoTextBox.BorderBrush = Brushes.Red;
-                this.MinTempoLabel.Content = $"Minimum Tempo - Could not parse to number.";
+                this.TempoGuessTextBox.BorderBrush = Brushes.Red;
                 parseFailure = true;
             }
             
-            if (!float.TryParse(maxText, out float maxTempo))
+            if (!float.TryParse(errorText, out float errorTempo))
             {
-                this.MaxTempoTextBox.BorderBrush = Brushes.Red;
-                this.MaxTempoLabel.Content = $"Maximum Tempo - Could not parse to number.";
+                this.TempoErrorTextBox.BorderBrush = Brushes.Red;
                 parseFailure = true;
             }
 
@@ -763,34 +761,11 @@
                 return;
             }
 
-            if (maxTempo <= minTempo)
-            {
-                this.MinTempoTextBox.BorderBrush = Brushes.Red;
-                this.MinTempoLabel.Content = $"Minimum Tempo - Must be larger than Maximum Tempo.";
-                this.MaxTempoTextBox.BorderBrush = Brushes.Red;
-                this.MaxTempoLabel.Content = $"Maximum Tempo - Must be smaller than Minimum Tempo.";
-            }
-            else if (minTempo < 40)
-            {
-                this.MinTempoTextBox.BorderBrush = Brushes.Red;
-                this.MinTempoLabel.Content = $"Minimum Tempo - Must be larger than 40 BPM.";
-            }
-            else if (maxTempo > 300)
-            {
-                this.MaxTempoTextBox.BorderBrush = Brushes.Red;
-                this.MaxTempoLabel.Content = $"Maximum Tempo - Must be less than 300 BPM";
-            }
-            else
-            {
-                this.MaxTempoTextBox.BorderBrush = Brushes.Black;
-                this.MinTempoTextBox.BorderBrush = Brushes.Black;
-                this.MaxTempoLabel.Content = $"Maximum Tempo";
-                this.MinTempoLabel.Content = $"Minimum Tempo";
-            }
-
+            this.TempoGuessTextBox.BorderBrush = Brushes.Black;
+            this.TempoErrorTextBox.BorderBrush = Brushes.Black;
             this.convertAudioButton.IsEnabled = false;
-            // Trigger some async work and send a reference to the Progress bar/label with it to report status
-            this.ConvertAudioTask = Task.Run(() => ConvertAudioFile(minTempo, maxTempo)).ContinueWith((t) => UpdateConvertButton(true));
+            // Trigger some async work hope it goes well
+            this.ConvertAudioTask = Task.Run(() => ConvertAudioFile(guessTempo - errorTempo, guessTempo + errorTempo)).ContinueWith((t) => UpdateConvertButton(true));
         }
 
         /// <summary>
@@ -901,6 +876,12 @@
                     goodTicks.RemoveAt(0);
             }
 
+            // If the average bpm of the song fell within the range, then do not interpolate.
+            if (bpm >= minTempo && bpm < maxTempo)
+            {
+                return (goodTicks.ToArray(), bpm);
+            }
+
             int multiplier = 1;
             while(bpm * (multiplier + 1) < maxTempo)
             {
@@ -974,6 +955,53 @@
                 this.ConversionProgress.Value = progressPercent;
                 this.StatusText.Text = label;
             });
+        }
+
+        /// <summary>
+        /// Helper function that returns true only whe a string contains all digits or empty.
+        /// </summary>
+        /// <param name="text">
+        /// The input text to check.
+        /// </param>
+        /// <returns>
+        /// bool indicating whether or not the string was all digits/empty.
+        /// </returns>
+        private static bool IsTextAllowed(string text)
+        {
+             if (text == null || text.Length == 0)
+            {
+                return true;
+            }
+
+            foreach(char c in text)
+            {
+                if (c < '0' || c > '9')
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Handles when text is added to the text box.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void TempoGuessTextBox_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            e.Handled = !IsTextAllowed(e.Text);
+        }
+
+        /// <summary>
+        /// Handles when text is added to the text box.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void TempoErrorTextBox_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            e.Handled = !IsTextAllowed(e.Text);
         }
     }
 }

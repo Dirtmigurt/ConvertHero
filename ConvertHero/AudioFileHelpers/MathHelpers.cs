@@ -2,6 +2,7 @@
 
 namespace ConvertHero.AudioFileHelpers
 {
+    using Accord.Math;
     using MathNet.Numerics;
     using System;
     using System.Collections.Generic;
@@ -451,6 +452,31 @@ namespace ConvertHero.AudioFileHelpers
                     array[i] /= max;
                 }
             }
+        }
+
+        /// <summary>
+        /// Normalize an array so that its max element is 1.
+        /// If the largest value is 0 the vector isn't touched
+        /// </summary>
+        /// <param name="array">
+        /// The array to be normalized.
+        /// </param>
+        /// <returns>
+        /// The normalized copy of the input array.
+        /// </returns>
+        public static float[] NormalizeClone(float[] array)
+        {
+            float max = array.Max();
+            float[] result = (float[])array.Clone();
+            if (max != 0)
+            {
+                for (int i = 0; i < result.Length; i++)
+                {
+                    result[i] /= max;
+                }
+            }
+
+            return result;
         }
 
         /// <summary>

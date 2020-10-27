@@ -56,12 +56,14 @@
         {
             this.width = width;
             this.causal = causal;
-            if (width % 2 == 0)
+
+            this.halfWidth = width;
+            if (this.halfWidth % 2 == 0)
             {
-                width++;
+                this.halfWidth++;
             }
 
-            this.halfWidth = (width - 1) / 2;
+            this.halfWidth = (this.halfWidth - 1) / 2;
             this.bufferFillIndex = causal ? 0 : this.halfWidth;
         }
 
@@ -91,7 +93,7 @@
                     }
                 }
 
-                int maxIndex = Math.Min(size, width - this.bufferFillIndex);
+                int maxIndex = Math.Min(size, this.width - this.bufferFillIndex);
                 for(int i = 0; i < maxIndex; i++)
                 {
                     this.buffer[this.bufferFillIndex] = input[readIndex];

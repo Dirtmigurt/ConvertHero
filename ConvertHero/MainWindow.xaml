@@ -129,10 +129,10 @@
                             <RowDefinition Height="1*" />
                             <RowDefinition Height="1*" />
                         </Grid.RowDefinitions>
-                        <TextBox Name="MinTempoTextBox" Grid.Column="0" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" />
-                        <TextBox Name="MaxTempoTextBox" Grid.Column="1" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" />
-                        <Label Name="MinTempoLabel" Content="Minimum Tempo" Grid.Column="0" Grid.Row="1" />
-                        <Label Name="MaxTempoLabel" Content="Maximum Tempo" Grid.Column="1" Grid.Row="1" />
+                        <TextBox Name="TempoGuessTextBox" Grid.Column="0" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" Text="120" PreviewTextInput="TempoGuessTextBox_PreviewTextInput" />
+                        <TextBox Name="TempoErrorTextBox" Grid.Column="1" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" Text="20" PreviewTextInput="TempoErrorTextBox_PreviewTextInput"/>
+                        <Label Name="TempoGuessLabel" Content="Tempo Guess" Grid.Column="0" Grid.Row="1" />
+                        <Label Name="TempoErrorLabel" Content="Tempo Error +/-" Grid.Column="1" Grid.Row="1" />
                     </Grid>
                     <Button Name="convertAudioButton" Content="Generate Tempo Track From Audio" IsEnabled="False" Height="50" Margin="5" Click="BtnConvertAudio_Click" />
                     <DockPanel>

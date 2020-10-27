@@ -184,7 +184,7 @@
             this.movingAverage = new MovingAverage(this.smoothingWindowHalfSize * 2 + 1);
             this.autocorrelation = new AutoCorrelation(NormalizeType.Unbiased);
 
-            this.CreateTempoPreferenceCurve();
+            this.CreateTempoPreferenceCurve(minTempo, maxTempo);
 
             // 0-th element in autocorrelation vector will corresponds to the period of 1.
             // Min value for the 'region' variable is -3 => we will compute starting from i
@@ -211,10 +211,10 @@
         ///   Maximum period of ODF to consider (period of 512 ODF samples with the
         ///   default settings) correspond to 512 * 512. / 44100. = ~6 secs
         /// </summary>
-        private void CreateTempoPreferenceCurve()
+        private void CreateTempoPreferenceCurve(float minTempo, float maxTempo)
         {
-
-            float rayparam2 = (float)Math.Pow(Math.Round(60 * this.sampleRateODF / 120f), 2);
+            float tempoPreference = (minTempo + maxTempo) / 2f;
+            float rayparam2 = (float)Math.Pow(Math.Round(60f * this.sampleRateODF / tempoPreference), 2);
             int maxPeriod = this.hopSizeODF;
             this.tempoWeights = new float[maxPeriod];
             for(int i = 0; i < maxPeriod; i++)
@@ -316,24 +316,26 @@
                 }
             }
 
-            MathHelpers.Normalize(ref onsetDetections);
-            if (this.resample > 1 && onsetDetections.Length > 1)
+            // Clone the input array so we accidentally modify it
+            float[] odfClone = (float[])onsetDetections.Clone();
+            MathHelpers.Normalize(ref odfClone);
+            if (this.resample > 1 && odfClone.Length > 1)
             {
-                float[] temp = new float[(onsetDetections.Length - 1) * this.resample + 1];
-                for( int i = 0; i < onsetDetections.Length-1; i++)
+                float[] temp = new float[(odfClone.Length - 1) * this.resample + 1];
+                for( int i = 0; i < odfClone.Length-1; i++)
                 {
-                    float delta = (onsetDetections[i + 1] - onsetDetections[i]) / this.resample;
+                    float delta = (odfClone[i + 1] - odfClone[i]) / this.resample;
                     for(int j = 0; j < resample; j++)
                     {
-                        temp[i * this.resample + j] = onsetDetections[i] + delta * j;
+                        temp[i * this.resample + j] = odfClone[i] + delta * j;
                     }
                 }
 
-                onsetDetections = temp;
+                odfClone = temp;
             }
 
-            this.ComputeBeatPeriodsDavies(onsetDetections, out List<float> beatPeriods, out List<float> beatEndPositions);
-            return this.ComputeBeatsDegara(onsetDetections, beatPeriods, beatEndPositions);
+            this.ComputeBeatPeriodsDavies(odfClone, out List<float> beatPeriods, out List<float> beatEndPositions);
+            return this.ComputeBeatsDegara(odfClone, beatPeriods, beatEndPositions);
         }
 
         /// <summary>
