@@ -1003,5 +1003,27 @@
         {
             e.Handled = !IsTextAllowed(e.Text);
         }
+
+        /// <summary>
+        /// Diplay a help window with information about how the MIDI conversion works.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void HelpAudioConversion_Click(object sender, RoutedEventArgs e)
+        {
+            AudioFileHelp helpWindow = new AudioFileHelp();
+            helpWindow.Show();
+        }
+
+        /// <summary>
+        /// Display a help window with information about how the Audio File Conversion works.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void HelpMidiConversion_Click(object sender, RoutedEventArgs e)
+        {
+            MIDIHelp helpWindow = new MIDIHelp();
+            helpWindow.Show();
+        }
     }
 }

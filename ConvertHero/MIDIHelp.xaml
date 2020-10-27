@@ -1,0 +1,35 @@
+﻿<Window x:Class="ConvertHero.MIDIHelp"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ConvertHero"
+        mc:Ignorable="d"
+        Title="MIDIHelp" SizeToContent="WidthAndHeight">
+    <Window.Resources>
+        <Style TargetType="ListViewItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        </Style>
+    </Window.Resources>
+    <StackPanel>
+        <GroupBox Header="Open Midi">
+            <Label>
+                <!--Newline = &#x0a -->
+                <TextBlock Text="When a MIDI File is opened, all of the channels are placed in each of the instrument boxes. &#x0a;This means if an MIDI File contains a Guitar+Bass+Drum track then Lead Guitar box will show all three tracks, the Bass Guitar box will show all three tracks, and the Drums box will show all three tracks. &#x0a;The Guitar track(s) should be removed from the Bass/Drum boxes.&#x0a;The Bass track(s) should be removed from the Guitar/Drum boxes.&#x0a;The Drum track(s) should be removed from the Guitar/Bass boxes" MaxWidth="600" TextWrapping="Wrap"/>
+            </Label>
+        </GroupBox>
+        <GroupBox Header="Track Priority">
+            <Label>
+                <!--Newline = &#x0a -->
+                <TextBlock Text="When an instrument has multiple channels (Lead/Rhythm) guitar, they are prioritized from top to bottom. Notes in the top channel that occurr at the same time as a note in the bottom channel will cause the bottom channels note to be ignored.&#x0a;This allows resting measures in the lead part to be filled in with notes from the rhythm part, and switch back to the lead part when it comes back in." MaxWidth="600" TextWrapping="Wrap"/>
+            </Label>
+        </GroupBox>
+        <GroupBox Header="Notes">
+            <Label>
+                <!--Newline = &#x0a -->
+                <TextBlock Text="Only the Bass track will generate open notes.&#x0a;Drum track will be in the Rockband Pro Dums format." MaxWidth="600" TextWrapping="Wrap"/>
+            </Label>
+        </GroupBox>
+    </StackPanel>
+</Window>

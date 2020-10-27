@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:ConvertHero"
         xmlns:dd="urn:gong-wpf-dragdrop"
         mc:Ignorable="d"
-        Title="ConvertHero" Height="569.534" Width="600" SizeToContent="WidthAndHeight" Loaded="Window_Loaded">
+        Title="ConvertHero" SizeToContent="WidthAndHeight" Loaded="Window_Loaded">
     <Window.Resources>
         <Style TargetType="ListViewItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -14,6 +14,12 @@
         </Style>
     </Window.Resources>
     <StackPanel>
+        <Menu>
+            <MenuItem Name="HelpMenuItem" Header="Help" >
+                <MenuItem Name="HelpMidiConversion" Header="MIDI Conversion" Click="HelpMidiConversion_Click"/>
+                <MenuItem Name="HelpAudioConversion" Header="Audio File Conversion" Click="HelpAudioConversion_Click"/>
+            </MenuItem>
+        </Menu>
         <TabControl>
             <TabItem Header="MIDI Conversion">
                 <StackPanel Background="#FFE5E5E5" >
@@ -34,10 +40,10 @@
                                 </Style>
                             </StackPanel.Resources>
                             <TextBlock FontWeight="Bold" Margin="5" TextAlignment="Center">Controls</TextBlock>
-                            <Button Name="leadButtonUP" Click="LeadButtonUP_Click">UP</Button>
-                            <Button Name="leadButtonDOWN" Click="LeadButtonDOWN_Click">DOWN</Button>
-                            <Button Name="leadButtonRemoveTrack" Click="LeadButtonRemoveTrack_Click">Remove Track</Button>
-                            <Button Name="playSelectedTrack" Click="PlaySelectedTrack_Click">Play Track</Button>
+                            <Button Name="leadButtonUP" Click="LeadButtonUP_Click" ToolTip="Increase the priority of the selected MIDI Channel so that its notes overwrite conflicting notes of the channels below it.">UP</Button>
+                            <Button Name="leadButtonDOWN" Click="LeadButtonDOWN_Click" ToolTip="Decrease the priority of the selected MIDI Channel so that its notes are overwritten by the conflicting notes of the channels avove it.">DOWN</Button>
+                            <Button Name="leadButtonRemoveTrack" Click="LeadButtonRemoveTrack_Click" ToolTip="Remove the MIDI Channel so that its notes are not included in the chart.">Remove Track</Button>
+                            <Button Name="playSelectedTrack" Click="PlaySelectedTrack_Click" ToolTip="Play the selected channel as audio.">Play Track</Button>
                         </StackPanel>
                         <ListView Name="LeadTrackListView" HorizontalAlignment="Stretch">
                             <ListView.View>
@@ -62,9 +68,9 @@
                                 </Style>
                             </StackPanel.Resources>
                             <TextBlock FontWeight="Bold" Margin="5" TextAlignment="Center">Options</TextBlock>
-                            <Button Name="bassButtonUP" Click="BassButtonUP_Click">UP</Button>
-                            <Button Name="bassButtonDOWN" Click="BassButtonDOWN_Click">DOWN</Button>
-                            <Button Name="bassButtonRemoveTrack" Click="BassButtonRemoveTrack_Click">Remove Track</Button>
+                            <Button Name="bassButtonUP" Click="BassButtonUP_Click" ToolTip="Increase the priority of the selected MIDI Channel so that its notes overwrite conflicting notes of the channels below it.">UP</Button>
+                            <Button Name="bassButtonDOWN" Click="BassButtonDOWN_Click" ToolTip="Decrease the priority of the selected MIDI Channel so that its notes are overwritten by the conflicting notes of the channels avove it.">DOWN</Button>
+                            <Button Name="bassButtonRemoveTrack" Click="BassButtonRemoveTrack_Click" ToolTip="Remove the MIDI Channel so that its notes are not included in the chart.">Remove Track</Button>
                         </StackPanel>
                         <ListView Name="BassTrackListView" HorizontalAlignment="Stretch">
                             <ListView.View>
@@ -89,9 +95,9 @@
                                 </Style>
                             </StackPanel.Resources>
                             <TextBlock FontWeight="Bold" Margin="5" TextAlignment="Center">Options</TextBlock>
-                            <Button Name="drumButtonUP" Click="DrumButtonUP_Click">UP</Button>
-                            <Button Name="drumButtonDOWN" Click="DrumButtonDOWN_Click">DOWN</Button>
-                            <Button Name="drumButtonRemoveTrack" Click="DrumButtonRemoveTrack_Click">Remove Track</Button>
+                            <Button Name="drumButtonUP" Click="DrumButtonUP_Click" ToolTip="Increase the priority of the selected MIDI Channel so that its notes overwrite conflicting notes of the channels below it.">UP</Button>
+                            <Button Name="drumButtonDOWN" Click="DrumButtonDOWN_Click" ToolTip="Decrease the priority of the selected MIDI Channel so that its notes are overwritten by the conflicting notes of the channels avove it.">DOWN</Button>
+                            <Button Name="drumButtonRemoveTrack" Click="DrumButtonRemoveTrack_Click" ToolTip="Remove the MIDI Channel so that its notes are not included in the chart.">Remove Track</Button>
                         </StackPanel>
                         <ListView Name="DrumTrackListView" HorizontalAlignment="Stretch">
                             <ListView.View>
@@ -129,8 +135,8 @@
                             <RowDefinition Height="1*" />
                             <RowDefinition Height="1*" />
                         </Grid.RowDefinitions>
-                        <TextBox Name="TempoGuessTextBox" Grid.Column="0" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" Text="120" PreviewTextInput="TempoGuessTextBox_PreviewTextInput" />
-                        <TextBox Name="TempoErrorTextBox" Grid.Column="1" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" Text="20" PreviewTextInput="TempoErrorTextBox_PreviewTextInput"/>
+                        <TextBox Name="TempoGuessTextBox" Grid.Column="0" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" Text="120" PreviewTextInput="TempoGuessTextBox_PreviewTextInput" ToolTip="Enter your best guess for the real tempo of the song." />
+                        <TextBox Name="TempoErrorTextBox" Grid.Column="1" Grid.Row="0" IsEnabled="True" Margin="5" Padding="5" Text="20" PreviewTextInput="TempoErrorTextBox_PreviewTextInput" ToolTip="This determines how wide the tempo preference window is.&#x0a;Using the default of 20, with a Tempo Guess of 120 BPM would prefer potential tempos in the range (100-140 BPM)&#x0a;This allows you to avoid detecting half tempos like 60 BPM for a 120 BPM song."/>
                         <Label Name="TempoGuessLabel" Content="Tempo Guess" Grid.Column="0" Grid.Row="1" />
                         <Label Name="TempoErrorLabel" Content="Tempo Error +/-" Grid.Column="1" Grid.Row="1" />
                     </Grid>
