@@ -74,7 +74,7 @@
         /// Whether or not to make each triangle area equal to 1 summing the actual weights of spectrum bins,
         /// </param>
         /// <param name="weightingFunction">type of weighting function for determining triangle area</param>
-        public TriangularBands(float[] frequencyBands, int sampleRate, int inputSize, bool log = false, OutputUnits type = OutputUnits.Power, bool normalizeUnitSum = true, Func<float, float> weightingFunction = null)
+        public TriangularBands(float[] frequencyBands, int sampleRate = 44100, int inputSize = 1025, bool log = false, OutputUnits type = OutputUnits.Power, bool normalizeUnitSum = true, Func<float, float> weightingFunction = null)
         {
             this.sampleRate = sampleRate;
             this.bandFreqeuncies = frequencyBands;

@@ -1,0 +1,29 @@
+﻿<Window x:Class="ConvertHero.AudioFileHelp"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ConvertHero"
+        mc:Ignorable="d"
+        Title="AudioFileHelp" SizeToContent="WidthAndHeight">
+    <StackPanel>
+        <GroupBox Header="Open Audio File">
+            <Label>
+                <!--Newline = &#x0a -->
+                <TextBlock Text="Select an audio file of the format (.mp3/.ogg/.wav)&#x0a;The audio MUST be sampled at 44100 Hz. Audacity can re-sample 48000 Hz files." MaxWidth="600" TextWrapping="Wrap"/>
+            </Label>
+        </GroupBox>
+        <GroupBox Header="Tempo Guess">
+            <Label>
+                <!--Newline = &#x0a -->
+                <TextBlock Text="Enter your best guess for the real tempo of the song." MaxWidth="600" TextWrapping="Wrap"/>
+            </Label>
+        </GroupBox>
+        <GroupBox Header="Tempo Error +/-">
+            <Label>
+                <!--Newline = &#x0a -->
+                <TextBlock Text="This determines how wide the tempo preference window is.&#x0a;Using the default of 20, with a Tempo Guess of 120 BPM would prefer potential tempos in the range (100-140 BPM)&#x0a;This allows you to avoid detecting half tempos like 60 BPM for a 120 BPM song." TextWrapping="Wrap"/>
+            </Label>
+        </GroupBox>
+    </StackPanel>
+</Window>

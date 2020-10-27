@@ -132,6 +132,8 @@
             }
 
             int selectedMethod = MathHelpers.ArgMax(distanceInfogain);
+            Console.WriteLine($"Distance Infogains = {string.Join(", ", distanceInfogain)}");
+            Console.WriteLine($"Tick Counts By Ops = {string.Join(", ", tickCandidates.Select(tc => tc.Count))}");
             return (distanceInfogain.Average(), tickCandidates[selectedMethod].ToArray());
         }
 
