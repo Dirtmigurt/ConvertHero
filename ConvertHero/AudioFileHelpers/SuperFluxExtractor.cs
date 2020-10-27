@@ -1,10 +1,6 @@
 ﻿namespace ConvertHero.AudioFileHelpers
 {
-    using System;
     using System.Collections.Generic;
-    using System.Linq;
-    using System.Text;
-    using System.Threading.Tasks;
 
     public class SuperFluxExtractor
     {
@@ -67,6 +63,15 @@
             this.superFluxPeaks = new SuperFluxPeaks(sampleRate / hopSize, threshold, ratioThreshold, combine, 100, 30);
         }
 
+        /// <summary>
+        /// Compute the peaks of a SuperFlux novelty curve which is computed from the input signal.
+        /// </summary>
+        /// <param name="signal">
+        /// The input audio signal.
+        /// </param>
+        /// <returns>
+        /// The peaks of the SuperFlux novelty curve of the audio signal.
+        /// </returns>
         public float[] ComputePeaks(float[] signal)
         {
             this.frameCutter.SetBuffer(signal);
@@ -100,6 +105,15 @@
             return this.superFluxPeaks.Compute(fluxNovelty.ToArray());
         }
 
+        /// <summary>
+        /// Compute only the SuperFlux novelty curve of the input signal.
+        /// </summary>
+        /// <param name="signal">
+        /// The input audio signal.
+        /// </param>
+        /// <returns>
+        /// The OnsetDetectionFuction defined by SuperFluxNovelty.
+        /// </returns>
         public float[] ComputeNovelty(float[] signal)
         {
             this.frameCutter.SetBuffer(signal);
