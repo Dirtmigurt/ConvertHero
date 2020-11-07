@@ -136,7 +136,7 @@
             this.nearestBinsWeights = new List<float>(this.binsInSemitone + 1);
             for(int b = 0; b <= this.binsInSemitone; b++)
             {
-                this.nearestBinsWeights.Add((float)Math.Pow(Math.Cos((b / this.binsInSemitone) * Math.PI / 2.0), 2));
+                this.nearestBinsWeights.Add((float)Math.Pow(Math.Cos((b / (float)this.binsInSemitone) * Math.PI / 2.0), 2));
             }
         }
 
@@ -191,7 +191,7 @@
                 float magnitudeFactor = (float)Math.Pow(magnitudes[i], this.magnitudeCompression);
 
                 // find all bins where this peak contributes salience
-                // these bins are (sub)harmonics of the peak frequency
+                // these bins are ((sub)harmonics when using /, overtones when using *) of the peak frequency
                 // propagate salience to nearest bins within +- one semitone
 
                 for (int h = 0; h < this.numberHarmonics; h++)

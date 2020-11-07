@@ -106,6 +106,11 @@
         /// </summary>
         public void GuitarReshape()
         {
+            if (this.Notes == null || this.Notes.Count == 0)
+            {
+                return;
+            }
+
             // Break chords into a single note, keeping the number of fingers to use and the Tone span
             BreakChords();
 
@@ -116,10 +121,10 @@
             RiseAndFallMapper(this.Notes, 5);
 
             // Build the chords back out since they were stripped into single notes
-            //RebuildChords();
+            RebuildChords();
 
             // Fix sustains, since midi files sustain ALL notes
-            //FixSustains();
+            FixSustains();
         }
 
         /// <summary>
@@ -134,6 +139,11 @@
         /// </summary>
         public void BassGuitarReshape()
         {
+            if (this.Notes == null || this.Notes.Count == 0)
+            {
+                return;
+            }
+
             // Break chords into a single note, keeping the number of fingers to use and the Tone span
             BreakChords();
 
@@ -422,6 +432,11 @@
         /// </summary>
         public void DrumReshape()
         {
+            if (this.Notes == null || this.Notes.Count == 0)
+            {
+                return;
+            }
+
             //split notes into 3 tracks, kick/cymbal/pad
             List<ChartEvent> kickEvents = new List<ChartEvent>();
             List<ChartEvent> snareEvents = new List<ChartEvent>();

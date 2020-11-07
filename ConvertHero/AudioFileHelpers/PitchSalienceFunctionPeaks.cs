@@ -38,7 +38,7 @@
         /// </returns>
         public (float[] salienceBins, float[] salienceValues) Compute(float[] salienceFunction)
         {
-            return this.peakDetector.Compute(salienceFunction);
+            return this.peakDetector.ComputeOnSpectrum(salienceFunction);
         }
     }
 }

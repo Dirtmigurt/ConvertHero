@@ -47,7 +47,7 @@
         /// </returns>
         public (float bpm, float[] ticks, float confidence, float[] estimates, float[] bpmIntervals) Compute(float[] signal, Action<string, double> ReportProgress = null)
         {
-            (float confidence, float[] ticks) = this.beatTracker.Compute(signal, ReportProgress);
+            (float confidence, float[] ticks) = this.beatTracker.ComputeCombinations(signal, ReportProgress);
             List<float> bpmIntervals = new List<float>();
             List<float> bpmEstimateList = new List<float>();
             for(int i = 1; i < ticks.Length; i++)

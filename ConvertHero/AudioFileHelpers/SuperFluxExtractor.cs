@@ -54,7 +54,7 @@
         /// <param name="threshold">threshold for peak peaking with respect to the difference between novelty_signal and average_signal (for onsets in ambient noise)</param>
         /// <param name="ratioThreshold">ratio threshold for peak picking with respect to novelty_signal/novelty_average rate, use 0 to disable it (for low-energy onsets)</param>
         /// <param name="combine">time threshold for double onsets detections (ms)</param>
-        public SuperFluxExtractor(int frameSize = 2048, int hopSize = 256, float sampleRate = 44100, float threshold = 0.05f, float ratioThreshold = 16, float combine = 20)
+        public SuperFluxExtractor(int frameSize = 2048, int hopSize = 512, float sampleRate = 44100, float threshold = 0.05f, float ratioThreshold = 16, float combine = 20)
         {
             this.frameCutter = new FrameCutter(frameSize, hopSize);
             this.windower = new Windowing(WindowingType.Hann);
@@ -91,7 +91,7 @@
                 float[] bands = this.triangularBands.ComputeTriangleBands(spectrum);
                 bandFrames.Add(bands);
 
-                if(bandFrames.Count > FrameWidth+6)
+                if(bandFrames.Count > FrameWidth + 1)
                 {
                     fluxNovelty.Add(this.superFluxNovelty.Compute(bandFrames));
                     bandFrames.RemoveAt(0);
@@ -133,7 +133,7 @@
                 float[] bands = this.triangularBands.ComputeTriangleBands(spectrum);
                 bandFrames.Add(bands);
 
-                if (bandFrames.Count > FrameWidth + 6)
+                if (bandFrames.Count > FrameWidth + 1)
                 {
                     fluxNovelty.Add(this.superFluxNovelty.Compute(bandFrames));
                     bandFrames.RemoveAt(0);

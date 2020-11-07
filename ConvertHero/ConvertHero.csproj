@@ -165,6 +165,7 @@
     <Compile Include="AudioFileHelpers\SuperFluxPeaks.cs" />
     <Compile Include="AudioFileHelpers\TempoTapDegara.cs" />
     <Compile Include="AudioFileHelpers\TempoTapMaxAgreement.cs" />
+    <Compile Include="AudioFileHelpers\TickPostProcessor.cs" />
     <Compile Include="AudioFileHelpers\TriangularBands.cs" />
     <Compile Include="AudioFileHelpers\Windowing.cs" />
     <Page Include="AudioFileHelp.xaml">

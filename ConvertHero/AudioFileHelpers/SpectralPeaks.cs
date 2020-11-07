@@ -19,7 +19,7 @@
         /// <param name="minFrequency">The minimum frequency to look for peaks in</param>
         /// <param name="magnitudeThreshold">The threhold that all peaks must meet.</param>
         /// <param name="type">How should the output be ordered</param>
-        public SpectralPeaks(float sampleRate = 44100, int maxPeaks = 100, float maxFrequency = 5000, float minFrequency = 55, float magnitudeThreshold = 0, OrderByType type = OrderByType.Amplitude)
+        public SpectralPeaks(float sampleRate = 44100, int maxPeaks = 100, float maxFrequency = 5000, float minFrequency = 0, float magnitudeThreshold = 0, OrderByType type = OrderByType.Amplitude)
         {
             this.peakDetector = new PeakDetection(minFrequency, maxFrequency, magnitudeThreshold, maxPeaks, sampleRate / 2f, true, type);
         }
@@ -31,7 +31,7 @@
         /// <returns>The peak positions and amplitudes</returns>
         public (float[] positions, float[] amplitudes) Compute(float[] spectrum)
         {
-            return this.peakDetector.Compute(spectrum);
+            return this.peakDetector.ComputeOnSpectrum(spectrum);
         }
     }
 

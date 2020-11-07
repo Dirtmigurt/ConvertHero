@@ -81,7 +81,7 @@
             this.minPosition = minPos;
             this.maxPosition = maxPos;
             this.threshold = threshold;
-            this.maxPeaks = maxPeaks;
+            this.maxPeaks = maxPeaks < 0 ? int.MaxValue : maxPeaks;
             this.range = range;
             this.interpolate = interpolate;
             this.orderby = orderby;
@@ -91,54 +91,54 @@
         /// <summary>
         /// Determine which local maxima are peaks.
         /// </summary>
-        /// <param name="signal">
+        /// <param name="spectrum">
         /// The input signal
         /// </param>
         /// <returns>
         /// The positions and amplitudes of the peaks in the signal.
         /// </returns>
-        public (float[] positions, float[] amplitudes) Compute(float[] signal)
+        public (float[] positions, float[] amplitudes) ComputeOnSpectrum(float[] spectrum)
         {
-            List<Peak> peaks = new List<Peak>(signal.Length);
-            int size = signal.Length;
-            float scale = this.range / (signal.Length - 1);
+            List<Peak> peaks = new List<Peak>(spectrum.Length);
+            int size = spectrum.Length;
+            float scale = this.range / (spectrum.Length - 1);
 
             // we want to round up to the next integer instead of simple truncation,
             // otherwise the peak frequency at i can be lower than _minPos
             int i = Math.Max(0, (int)Math.Ceiling(this.minPosition / scale));
 
             // first check the boundaries:
-            if (i + 1 < size && signal[i] > signal[i + 1])
+            if (i + 1 < size && spectrum[i] > spectrum[i + 1])
             {
-                if (signal[i] > this.threshold)
+                if (spectrum[i] > this.threshold)
                 {
-                    peaks.Add(new Peak(i * scale, signal[i]));
+                    peaks.Add(new Peak(i * scale, spectrum[i]));
                 }
             }
 
             while (true)
             {
                 // going down
-                while (i + 1 < size - 1 && signal[i] >= signal[i + 1])
+                while (i + 1 < size - 1 && spectrum[i] >= spectrum[i + 1])
                 {
                     i++;
                 }
 
                 // now we're climbing
-                while (i + 1 < size - 1 && signal[i] < signal[i + 1])
+                while (i + 1 < size - 1 && spectrum[i] < spectrum[i + 1])
                 {
                     i++;
                 }
 
                 // not anymore, go through the plateau
                 int j = i;
-                while (j + 1 < size - 1 && (signal[j] == signal[j + 1]))
+                while (j + 1 < size - 1 && (spectrum[j] == spectrum[j + 1]))
                 {
                     j++;
                 }
 
                 // end of plateau, do we go up or down?
-                if (j + 1 < size - 1 && signal[j + 1] < signal[j] && signal[j] > this.threshold)
+                if (j + 1 < size - 1 && spectrum[j + 1] < spectrum[j] && spectrum[j] > this.threshold)
                 { // going down again
                     float resultBin = 0.0f;
                     float resultVal = 0.0f;
@@ -153,18 +153,18 @@
                         {
                             resultBin = i;
                         }
-                        resultVal = signal[i];
+                        resultVal = spectrum[i];
                     }
                     else
                     { // interpolate peak at i-1, i and i+1
                         if (this.interpolate)
                         {
-                            Interpolate(signal[j - 1], signal[j], signal[j + 1], j, out resultVal, out resultBin);
+                            Interpolate(spectrum[j - 1], spectrum[j], spectrum[j + 1], j, out resultVal, out resultBin);
                         }
                         else
                         {
                             resultBin = j;
-                            resultVal = signal[j];
+                            resultVal = spectrum[j];
                         }
                     }
 
@@ -183,20 +183,20 @@
 
                 if (i + 1 >= size - 1)
                 { // check the one just before the last position
-                    if (i == size - 2 && signal[i - 1] < signal[i] &&
-                        signal[i + 1] < signal[i] &&
-                        signal[i] > this.threshold)
+                    if (i == size - 2 && spectrum[i - 1] < spectrum[i] &&
+                        spectrum[i + 1] < spectrum[i] &&
+                        spectrum[i] > this.threshold)
                     {
                         float resultBin = 0.0f;
                         float resultVal = 0.0f;
                         if (this.interpolate)
                         {
-                            Interpolate(signal[i - 1], signal[i], signal[i + 1], j, out resultVal, out resultBin);
+                            Interpolate(spectrum[i - 1], spectrum[i], spectrum[i + 1], j, out resultVal, out resultBin);
                         }
                         else
                         {
                             resultBin = i;
-                            resultVal = signal[i];
+                            resultVal = spectrum[i];
                         }
                         peaks.Add(new Peak(resultBin * scale, resultVal));
                     }
@@ -206,11 +206,11 @@
 
             // check upper boundary here, so peaks are already sorted by position
             float pos = this.maxPosition / scale;
-            if (size - 2 < pos && pos <= size - 1 && signal[size - 1] > signal[size - 2])
+            if (size - 2 < pos && pos <= size - 1 && spectrum[size - 1] > spectrum[size - 2])
             {
-                if (signal[size - 1] > this.threshold)
+                if (spectrum[size - 1] > this.threshold)
                 {
-                    peaks.Add(new Peak((size - 1) * scale, signal[size - 1]));
+                    peaks.Add(new Peak((size - 1) * scale, spectrum[size - 1]));
                 }
             }
 
@@ -265,6 +265,183 @@
             float[] positions = new float[nPeaks];
             float[] amplitudes = new float[nPeaks];
             for(i = 0; i < nPeaks; i++)
+            {
+                positions[i] = peaks[i].position;
+                amplitudes[i] = peaks[i].magnitude;
+            }
+
+            return (positions, amplitudes);
+        }
+
+        /// <summary>
+        /// Determine which local maxima are peaks.
+        /// </summary>
+        /// <param name="signal">
+        /// The input signal
+        /// </param>
+        /// <returns>
+        /// The positions and amplitudes of the peaks in the signal.
+        /// </returns>
+        public (float[] positions, float[] amplitudes) ComputeOnSignal(float[] signal)
+        {
+            List<Peak> peaks = new List<Peak>(signal.Length);
+            int size = signal.Length;
+
+            // we want to round up to the next integer instead of simple truncation,
+            // otherwise the peak frequency at i can be lower than _minPos
+            int i = Math.Max(0, (int)Math.Ceiling(this.minPosition));
+
+            // first check the boundaries:
+            if (i + 1 < size && signal[i] > signal[i + 1])
+            {
+                if (signal[i] > this.threshold)
+                {
+                    peaks.Add(new Peak(i, signal[i]));
+                }
+            }
+
+            while (true)
+            {
+                // going down
+                while (i + 1 < size - 1 && signal[i] >= signal[i + 1])
+                {
+                    i++;
+                }
+
+                // now we're climbing
+                while (i + 1 < size - 1 && signal[i] < signal[i + 1])
+                {
+                    i++;
+                }
+
+                // not anymore, go through the plateau
+                int j = i;
+                while (j + 1 < size - 1 && (signal[j] == signal[j + 1]))
+                {
+                    j++;
+                }
+
+                // end of plateau, do we go up or down?
+                if (j + 1 < size - 1 && signal[j + 1] < signal[j] && signal[j] > this.threshold)
+                { // going down again
+                    float resultBin = 0.0f;
+                    float resultVal = 0.0f;
+
+                    if (j != i)
+                    { // plateau peak between i and j
+                        if (this.interpolate)
+                        {
+                            resultBin = (float)Math.Round((i + j) * 0.5f);
+                        }
+                        else
+                        {
+                            resultBin = i;
+                        }
+                        resultVal = signal[i];
+                    }
+                    else
+                    { // interpolate peak at i-1, i and i+1
+                        if (this.interpolate)
+                        {
+                            Interpolate(signal[j - 1], signal[j], signal[j + 1], j, out resultVal, out resultBin);
+                        }
+                        else
+                        {
+                            resultBin = j;
+                            resultVal = signal[j];
+                        }
+                    }
+
+                    peaks.Add(new Peak((float)Math.Round(resultBin), resultVal));
+                }
+
+                // nothing found, start loop again
+                i = j;
+
+                if (i + 1 >= size - 1)
+                { // check the one just before the last position
+                    if (i == size - 2 && signal[i - 1] < signal[i] &&
+                        signal[i + 1] < signal[i] &&
+                        signal[i] > this.threshold)
+                    {
+                        float resultBin = 0.0f;
+                        float resultVal = 0.0f;
+                        if (this.interpolate)
+                        {
+                            Interpolate(signal[i - 1], signal[i], signal[i + 1], j, out resultVal, out resultBin);
+                        }
+                        else
+                        {
+                            resultBin = i;
+                            resultVal = signal[i];
+                        }
+                        peaks.Add(new Peak((float)Math.Round(resultBin), resultVal));
+                    }
+                    break;
+                }
+            }
+
+            // check upper boundary here, so peaks are already sorted by position
+            float pos = signal.Length - 1;
+            if (size - 2 < pos && pos <= size - 1 && signal[size - 1] > signal[size - 2])
+            {
+                if (signal[size - 1] > this.threshold)
+                {
+                    peaks.Add(new Peak((size - 1), signal[size - 1]));
+                }
+            }
+
+            if (this.minPeakDistance > 0 && peaks.Count > 1)
+            {
+                List<int> deletedPeaks = new List<int>();
+                float minPos;
+                float maxPos;
+
+                // order peaks by DESCENDING magnitude
+                peaks = peaks.OrderByDescending(p => p.magnitude).ToList();
+
+                int k = 0;
+                while (k < peaks.Count - 1)
+                {
+                    minPos = peaks[k].position - this.minPeakDistance;
+                    maxPos = peaks[k].position + this.minPeakDistance;
+
+                    for (int l = k + 1; l < peaks.Count; l++)
+                    {
+                        if (peaks[l].position > minPos && peaks[l].position < maxPos)
+                        {
+                            deletedPeaks.Add(l);
+                        }
+                    }
+
+                    // delete peaks starting from the end so the indexes are not altered
+                    deletedPeaks = deletedPeaks.OrderByDescending(p => p).ToList();
+                    for (int l = 0; l < deletedPeaks.Count; l++)
+                    {
+                        peaks.RemoveAt(deletedPeaks[l]);
+                    }
+
+                    deletedPeaks.Clear();
+                    k++;
+                }
+
+                if (this.orderby == OrderByType.Position)
+                {
+                    peaks = peaks.OrderBy(p => p.position).ToList();
+                }
+            }
+            else
+            {
+                if (this.orderby == OrderByType.Amplitude)
+                {
+                    peaks = peaks.OrderByDescending(p => p.magnitude).ToList();
+                }
+            }
+
+            int nPeaks = Math.Min(this.maxPeaks, peaks.Count);
+            float[] positions = new float[nPeaks];
+            float[] amplitudes = new float[nPeaks];
+            for (i = 0; i < nPeaks; i++)
             {
                 positions[i] = peaks[i].position;
                 amplitudes[i] = peaks[i].magnitude;
