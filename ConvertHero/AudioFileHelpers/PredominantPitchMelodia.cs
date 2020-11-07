@@ -27,6 +27,11 @@
         /// Windower to apply window to frames.
         /// </summary>
         Windowing windower;
+
+        /// <summary>
+        /// Averagery to smooth the spectrum.
+        /// </summary>
+        MovingAverage averager;
         
         /// <summary>
         /// Helper object that finds peaks in the spectrum
@@ -58,7 +63,12 @@
         /// List of windowers used by concurrent workers.
         /// </summary>
         List<Windowing> windowerList = new List<Windowing>();
-        
+
+        /// <summary>
+        /// List of averagers used by concurrent workers.
+        /// </summary>
+        List<MovingAverage> averagerList = new List<MovingAverage>();
+
         /// <summary>
         /// List of spectralPeak finders used by concurrent workers.
         /// </summary>
@@ -116,7 +126,7 @@
             int numberHarmonics = 20,
             float harmonicWeight = 0.8f,
             /// Pitch contour tracking
-            float peakFrameThreshold = 0.9f,
+            float peakFrameThreshold = 0.8f, //0.9f,
             float peakDistributionThreshold = 0.9f,
             float pitchContinuity = 27.5625f,
             float timeContinuity = 100,
@@ -126,17 +136,19 @@
             bool voiceVibrato = false,
             int filterIterations = 3,
             bool guessUnvoiced = false,
-            float minFrequency = 80,
+            float minFrequency = 1,
             float maxFrequency = 20000)
         {
 
             int zeroPaddingFactor = 4;
             int maxSpectralPeaks = 100;
+            int averagerSize = (int)(MathHelpers.Log2(frameSize) / 2);
             this.frameCutter = new FrameCutter(frameSize, hopSize, startFromZero: false);
             this.windower = new Windowing(WindowingType.Hann, (zeroPaddingFactor - 1) * frameSize);
-            this.spectralPeaks = new SpectralPeaks(sampleRate, maxSpectralPeaks, 20000, 1, 0, OrderByType.Amplitude);
+            this.averager = new MovingAverage(averagerSize);
+            this.spectralPeaks = new SpectralPeaks(sampleRate, maxSpectralPeaks, maxFrequency, minFrequency, 0, OrderByType.Amplitude);
             this.pitchSalience = new PitchSalienceFunction(binResolution, referenceFrequency, magnitudeThreshold, magnitudeCompression, numberHarmonics, harmonicWeight);
-            this.saliencePeaks = new PitchSalienceFunctionPeaks(binResolution, 1, 20000, referenceFrequency);
+            this.saliencePeaks = new PitchSalienceFunctionPeaks(binResolution, minFrequency, maxFrequency, referenceFrequency);
             this.pitchContours = new PitchContours(sampleRate, hopSize, binResolution, peakFrameThreshold, peakDistributionThreshold, pitchContinuity, timeContinuity, minDuration);
             this.melodyDetector = new PitchContoursMelody(referenceFrequency, binResolution, sampleRate, hopSize, voicingTolerance, voiceVibrato, filterIterations, guessUnvoiced, minFrequency, maxFrequency);
 
@@ -144,9 +156,10 @@
             for(int i = 0; i < 32; i++)
             {
                 this.windowerList.Add(new Windowing(WindowingType.Hann, (zeroPaddingFactor - 1) * frameSize));
-                this.spectralPeaksList.Add(new SpectralPeaks(sampleRate, maxSpectralPeaks, 20000, 1, 0, OrderByType.Amplitude));
+                this.averagerList.Add(new MovingAverage(averagerSize));
+                this.spectralPeaksList.Add(new SpectralPeaks(sampleRate, maxSpectralPeaks, maxFrequency, minFrequency, 0, OrderByType.Amplitude));
                 this.pitchSalienceList.Add(new PitchSalienceFunction(binResolution, referenceFrequency, magnitudeThreshold, magnitudeCompression, numberHarmonics, harmonicWeight));
-                this.saliencePeaksList.Add(new PitchSalienceFunctionPeaks(binResolution, 1, 20000, referenceFrequency));
+                this.saliencePeaksList.Add(new PitchSalienceFunctionPeaks(binResolution,minFrequency, maxFrequency, referenceFrequency));
                 this.semaphoreList.Add(new SemaphoreSlim(1, 1));
             }
         }
@@ -173,6 +186,7 @@
                 }
                 this.windower.Compute(ref frame);
                 float[] spectrum = Spectrum.ComputeMagnitudeSpectrum(frame);
+                spectrum = this.averager.Compute(spectrum);
                 (float[] frequencies, float[] magnitudes) = this.spectralPeaks.Compute(spectrum);
                 float[] salience = this.pitchSalience.Compute(frequencies, magnitudes);
                 (float[] salienceBins, float[] salienceValues) = this.saliencePeaks.Compute(salience);
@@ -203,18 +217,18 @@
             int frameIndex = 0;
             SemaphoreSlim semaphore = new SemaphoreSlim(this.semaphoreList.Count, this.semaphoreList.Count);
             List<Task> tasks = new List<Task>();
+            int x = 0;
             while (true)
             {
                 float[] frame = this.frameCutter.GetNextFrame();
+                x++;
                 if (frame == null || frame.Length == 0)
                 {
                     break;
                 }
 
                 await semaphore.WaitAsync();
-                tasks.Add(Task.Run(() => ProcessFrame(frame, frameIndex)).ContinueWith((t) => semaphore.Release()));
-
-                frameIndex++;
+                tasks.Add(Task.Run(() => ProcessFrame(frame, frameIndex++)).ContinueWith((t) => semaphore.Release()));
             }
 
             await Task.WhenAll(tasks);
@@ -225,6 +239,49 @@
 
             (List<float[]> contoursBins, List<float[]> contoursSalience, float[] contoursStartTimes, float duration) = this.pitchContours.Compute(peakBins, peakSalience);
             return this.melodyDetector.Compute(contoursBins, contoursSalience, contoursStartTimes, duration);
+        }
+
+        /// <summary>
+        /// Compute the melody slightly faster by doing the peak salience concurrently,
+        /// and then computing the contours and finally the melody.
+        /// </summary>
+        /// <param name="signal">
+        /// The input audio signal.
+        /// </param>
+        /// <returns>
+        /// pitch = The frequency carrying the melody at each frame.
+        /// pitchConfidence = the confidence in the melody estimation at each frame.
+        /// </returns>
+        public async Task<(List<float[]> contoursBins, List<float[]> contoursSalience, float[] contoursStartTimes)> ComputeContoursAsync(float[] signal)
+        {
+            this.frameCutter.SetBuffer(signal);
+            List<float[]> peakBins = new List<float[]>();
+            List<float[]> peakSalience = new List<float[]>();
+            int frameIndex = 0;
+            SemaphoreSlim semaphore = new SemaphoreSlim(this.semaphoreList.Count, this.semaphoreList.Count);
+            List<Task> tasks = new List<Task>();
+            int x = 0;
+            while (true)
+            {
+                float[] frame = this.frameCutter.GetNextFrame();
+                x++;
+                if (frame == null || frame.Length == 0)
+                {
+                    break;
+                }
+
+                await semaphore.WaitAsync();
+                tasks.Add(Task.Run(() => ProcessFrame(frame, frameIndex++)).ContinueWith((t) => semaphore.Release()));
+            }
+
+            await Task.WhenAll(tasks);
+
+            // stuff dictionaries into peakBins/peakSalience
+            peakBins.AddRange(this.peakBinsDict.OrderBy(kvp => kvp.Key).Select(kvp => kvp.Value));
+            peakSalience.AddRange(this.peakSalienceDict.OrderBy(kvp => kvp.Key).Select(kvp => kvp.Value));
+
+            (List<float[]> contoursBins, List<float[]> contoursSalience, float[] contoursStartTimes, float duration) = this.pitchContours.Compute(peakBins, peakSalience);
+            return (contoursBins, contoursSalience, contoursStartTimes);
         }
 
         /// <summary>
@@ -242,11 +299,12 @@
             this.semaphoreList[i].Wait();
             this.windowerList[i].Compute(ref frame);
             float[] spectrum = Spectrum.ComputeMagnitudeSpectrum(frame);
+            spectrum = this.averagerList[i].Compute(spectrum);
             (float[] frequencies, float[] magnitudes) = this.spectralPeaksList[i].Compute(spectrum);
             float[] salience = this.pitchSalienceList[i].Compute(frequencies, magnitudes);
             (float[] salienceBins, float[] salienceValues) = this.saliencePeaksList[i].Compute(salience);
-            this.peakBinsDict[frameIndex] = salienceBins;
-            this.peakSalienceDict[frameIndex] = salienceValues;
+            this.peakBinsDict.TryAdd(frameIndex, salienceBins);
+            this.peakSalienceDict.TryAdd(frameIndex, salienceValues);
             this.semaphoreList[i].Release();
         }
     }

@@ -19,11 +19,13 @@
     using System.Threading;
     using System.Windows.Media;
     using System.ComponentModel;
+    using MathNet.Numerics;
+    using Accord.Collections;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : System.Windows.Window
     {
         /// <summary>
         /// The list of time signatures and tempo events in the midi file.
@@ -146,7 +148,8 @@
             List<SyncEvent> syncTrack = new List<SyncEvent>();
             foreach (var tempoEvent in midiFile.GetTempoMap().Tempo.AsEnumerable())
             {
-                syncTrack.Add(new SyncEvent(tempoEvent.Time, tempoEvent.Value.BeatsPerMinute));
+                double bpm = 60000000.0 / tempoEvent.Value.MicrosecondsPerQuarterNote;
+                syncTrack.Add(new SyncEvent(tempoEvent.Time, bpm));
             }
 
             foreach (var timeSignatureEvent in midiFile.GetTempoMap().TimeSignature.AsEnumerable())
@@ -154,7 +157,6 @@
                 syncTrack.Add(new SyncEvent(timeSignatureEvent.Time, timeSignatureEvent.Value.Numerator, timeSignatureEvent.Value.Denominator));
             }
 
-            List<ITimedObject> x = midiFile.GetTimedEventsAndNotes().ToList();
             return syncTrack.OrderBy(k => k.Tick).ToList();
         }
 
@@ -454,7 +456,7 @@
                 using (StreamWriter writer = new StreamWriter(Path.ChangeExtension(MidiFileName, ".chart")))
                 {
                     // Write SONG section
-                    writer.WriteLine(string.Format(Properties.Resources.SongSection, 192, Path.GetFileName(MidiFileName)));
+                    writer.WriteLine(string.Format(Properties.Resources.SongSection, ChartResolution, Path.GetFileName(MidiFileName)));
 
                     // Write SYNC section
                     writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", SyncTrack.Select(s => s.ToString()))));
@@ -765,7 +767,7 @@
             this.TempoErrorTextBox.BorderBrush = Brushes.Black;
             this.convertAudioButton.IsEnabled = false;
             // Trigger some async work hope it goes well
-            this.ConvertAudioTask = Task.Run(() => ConvertAudioFile(guessTempo - errorTempo, guessTempo + errorTempo)).ContinueWith((t) => UpdateConvertButton(true));
+            this.ConvertAudioTask = Task.Run(async () => await ConvertAudioFile(guessTempo - errorTempo, guessTempo + errorTempo).ContinueWith((t) => UpdateConvertButton(true)));
         }
 
         /// <summary>
@@ -782,8 +784,9 @@
         /// The maximum tempo that the tempo detection shoudl use as a hint.
         /// The output tempo may be higher than this, this is only a suggestion of where to look.
         /// </param>
-        private void ConvertAudioFile(float minTempo, float maxTempo)
+        private async Task ConvertAudioFile(float minTempo, float maxTempo)
         {
+            await Task.Yield();
             float tempMinTempo = minTempo;
             float tempMaxTempo = maxTempo;
 
@@ -805,133 +808,126 @@
 
                 UpdateProgressBar("Reading audio file...", 1);
                 float[] signal = reader.ReadAll();
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                ////          COMPUTE MELODY
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                ////PredominantPitchMelodia melodyExtractor = new PredominantPitchMelodia(frameSize: 2048, hopSize: 128, minDuration: 100);
+
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                ////          COMPUTE TEMPO TRACK
+                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                 RhythmExtractor extractor = new RhythmExtractor(reader.SampleRate, tempMinTempo, tempMaxTempo);
                 (float bpm, float[] ticks, float confidence, float[] estimates, float[] bpmIntervals) = extractor.Compute(signal, UpdateProgressBar);
-                (ticks, bpm) = this.PostProcessTicks(ticks, bpm, minTempo, maxTempo);
-
-                UpdateProgressBar("Building .chart File...", 1);
-                List<SyncEvent> syncTrack = new List<SyncEvent> { new SyncEvent(0, 1, 4) };
-                int currentTick = 0;
-                float currentTime = 0;
-                for (int i = 0; i < ticks.Length; i++)
-                {
-                    float targetTime = ticks[i];
-
-                    // What BPM value will make 192 ticks == tick - currentTime
-                    float deltaT = targetTime - currentTime;
-                    double b = 60f / deltaT;
-                    if (i == 0 || Math.Abs(b - syncTrack[syncTrack.Count - 1].BeatsPerMinute) >= 0.01)
-                    {
-                        // Add the event if its the first event or the BPM changed.
-                        syncTrack.Add(new SyncEvent(currentTick, b));
-                    }
-
-                    currentTick = 192 * (i + 1);
-                    currentTime = targetTime;
-                }
-
-                // Write a .chart file with the sync track filled out
-                string outputFile = Path.ChangeExtension(AudioFileName, ".chart");
-                using (StreamWriter writer = new StreamWriter(outputFile))
-                {
-                    // Write SONG section
-                    writer.WriteLine(string.Format(Properties.Resources.SongSection, 192, Path.GetFileName(AudioFileName)));
-
-                    // Write SYNC section
-                    writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", syncTrack.Select(s => s.ToString()))));
-                }
-
-                UpdateProgressBar($"Complete -> {outputFile}", 100);
+                (ticks, bpm) = TickPostProcessor.PostProcessTicks(ticks, bpm, minTempo, maxTempo);
+                ////(float[] pitches, float[] pitchConfidence) = await melodyTask;
+                this.GenerateChartFile(ticks);
             }
         }
 
         /// <summary>
-        /// Clean up starting ticks that can appear very close together.
-        /// If an integer multiple of the computed BPM falls into the desired BPM range, then interpolate/remove tick values
-        /// to meet that BPM target.
-        /// For example if a compute BPM of 90 is returned but the user wants 160 <= BPM <=200 then we can 2x that BPM to meet their needs.
-        /// This is easily done by adding a single new tick in between each computed tick.
+        /// Generate a chart file from the given beat locations and pitches.
+        /// The pitches are optional
         /// </summary>
         /// <param name="ticks">
-        /// The ticks that were computed from onset features.
+        /// The exact locations in time of the quarter note beats.
         /// </param>
-        /// <param name="bpm">
-        /// The average BPM from the ticks in the 'ticks' parameter.
+        /// <param name="pitches">
+        /// The pitches of the melody.
         /// </param>
-        /// <param name="minTempo">
-        /// The minimum tempo desired by the user.
+        /// <param name="pitchHopTime">
+        /// The amount of real time (seconds) that passes from each array element of the pitches array. (ex. 0.1 seconds from index 0-> index 1)
         /// </param>
-        /// <param name="maxTempo">
-        /// The maximum tempo desired by the user.
-        /// </param>
-        /// <returns>
-        /// A new tick array without the close together starting ticks.
-        /// The new tick array may also have ticks added/or removed to change the BPM to an integer multiple.
-        /// </returns>
-        private (float[] newTicks, float newBmp) PostProcessTicks(float[] ticks, float bpm, float minTempo, float maxTempo)
+        private void GenerateChartFile(float[] ticks, float[] pitches = null, float pitchHopTime = 128f / 44100f)
         {
-            List<float> goodTicks = new List<float>(ticks);
-            while(60f / goodTicks[0] > (2  * bpm))
+            UpdateProgressBar("Building .chart File...", 99);
+            int chartResolution = 192;
+            List<SyncEvent> syncTrack = new List<SyncEvent> { new SyncEvent(0, 1, 4) };
+            int currentTick = 0;
+            float currentTime = 0;
+            for (int i = 0; i < ticks.Length; i++)
             {
-                    goodTicks.RemoveAt(0);
-            }
+                float targetTime = ticks[i];
 
-            // If the average bpm of the song fell within the range, then do not interpolate.
-            if (bpm >= minTempo && bpm < maxTempo)
-            {
-                return (goodTicks.ToArray(), bpm);
-            }
-
-            int multiplier = 1;
-            while(bpm * (multiplier + 1) < maxTempo)
-            {
-                multiplier++;
-            }
-
-            if (multiplier > 1 && bpm * multiplier > minTempo)
-            {
-                // interpolate ticks with (multiplier-1) intermediate ticks
-                ticks = goodTicks.ToArray();
-                for(int i = 0; i < ticks.Length - 1; i++)
+                // What BPM value will make 192 ticks == tick - currentTime
+                float deltaT = targetTime - currentTime;
+                double b = 60f / deltaT;
+                if (i == 0 || Math.Abs(b - syncTrack[syncTrack.Count - 1].BeatsPerMinute) >= 0.01)
                 {
-                    float start = ticks[i];
-                    float end = ticks[i + 1];
-                    float step = (end - start) / multiplier;
-                    for(int j = 1; j < multiplier; j++)
-                    {
-                        goodTicks.Add(start + (j * step));
-                    }
+                    // Add the event if its the first event or the BPM changed.
+                    syncTrack.Add(new SyncEvent(currentTick, b));
                 }
 
-                goodTicks.Sort();
-                return (goodTicks.ToArray(), bpm * multiplier);
+                currentTick = chartResolution * (i + 1);
+                currentTime = targetTime;
             }
 
-            int diviser = 1;
-            while(bpm / (diviser + 1f) > minTempo)
+            List<ChartEvent> noteEvents = new List<ChartEvent>();
+            if (pitches != null)
             {
-                diviser++;
-            }
-
-            if (diviser > 1 && bpm / diviser < maxTempo)
-            {
-                // keep 1 element, remove diviser-1 
-                int i = 0;
-                while(i < goodTicks.Count)
+                MovingAverage averager = new MovingAverage(5);
+                pitches = averager.Compute(pitches);
+                int[] tones = new int[pitches.Length];
+                int currentQuarterNote = 0;
+                HashSet<long> usedTicks = new HashSet<long>();
+                for (int i = 0; i < tones.Length; i++)
                 {
-                    // remove goodTicks[i+1] ... goodTicks[i+diviser-1]
-                    for(int j = i + 1; j <= i + diviser - 1; j++)
+                    tones[i] = (int)MathHelpers.HertzToTone(pitches[i]);
+                    if (tones[i] == 0)
                     {
-                        goodTicks.RemoveAt(j);
+                        continue;
                     }
 
-                    i++;
-                }
+                    float t = i * pitchHopTime;
+                    while (currentQuarterNote < ticks.Length - 2 && ticks[currentQuarterNote + 1] < t)
+                    {
+                        currentQuarterNote++;
+                    }
 
-                return (goodTicks.ToArray(), bpm / diviser);
+                    if (i == 0 || tones[i] != tones[i - 1])
+                    {
+                        // Snap tick to 1/32 note
+                        float beatStart = currentQuarterNote == 0 ? 0 : ticks[currentQuarterNote];
+                        float beatEnd = currentQuarterNote == 0 ? ticks[currentQuarterNote] : ticks[currentQuarterNote + 1];
+                        float beatPeriod = beatEnd - beatStart;
+                        float fromStartOfBeat = t - beatStart;
+                        long tick = (long)(8f * (fromStartOfBeat / beatPeriod));
+                        // 32nd tick resolution = 1quarter note resolution / 8.
+                        long tRes = chartResolution / 8;
+                        tick *= tRes;
+                        tick = chartResolution * currentQuarterNote + tick;
+                        if (usedTicks.Contains(tick))
+                        {
+                            continue;
+                        }
+
+                        // the tone changed!!! create an event
+                        noteEvents.Add(new ChartEvent(tick, tones[i]));
+                        usedTicks.Add(tick);
+                    }
+                }
             }
 
-            return (goodTicks.ToArray(), bpm);
+            NoteTrack track = new NoteTrack(noteEvents, syncTrack, chartResolution, GeneralMidiProgram.ElectricGuitar1, null, "DetectedMelody");
+            track.CloneHeroInstrument = CloneHeroInstrument.Single.ToString();
+            track.GuitarReshape();
+
+            // Write a .chart file with the sync track filled out
+            string outputFile = Path.ChangeExtension(AudioFileName, ".chart");
+            using (StreamWriter writer = new StreamWriter(outputFile))
+            {
+                // Write SONG section
+                writer.WriteLine(string.Format(Properties.Resources.SongSection, chartResolution, Path.GetFileName(AudioFileName)));
+
+                // Write SYNC section
+                writer.WriteLine(string.Format(Properties.Resources.SyncTrack, string.Join("\n", syncTrack.Select(s => s.ToString()))));
+
+
+                // Write Note section
+                writer.WriteLine(string.Format(Properties.Resources.NoteTrack, $"{CloneHeroDifficulty.Expert}{CloneHeroInstrument.Single}", string.Join("\n", track.Notes.Select(n => n.ToString()))));
+            }
+
+            UpdateProgressBar($"Complete -> {outputFile}", 100);
         }
 
         /// <summary>

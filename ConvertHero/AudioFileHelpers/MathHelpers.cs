@@ -1,6 +1,4 @@
-﻿
-
-namespace ConvertHero.AudioFileHelpers
+﻿namespace ConvertHero.AudioFileHelpers
 {
     using Accord.Math;
     using MathNet.Numerics;
@@ -129,6 +127,25 @@ namespace ConvertHero.AudioFileHelpers
         public static float HertzToCents(float hz)
         {
             return (float)(12 * Math.Log(hz / 440.0) / Math.Log(2.0) + 69.0);
+        }
+
+        /// <summary>
+        /// Convert hertz to tone, where A4 = 440Hz, A4 = 48th tone.
+        /// </summary>
+        /// <param name="hz">
+        /// The frequency in Hz of the tone.
+        /// </param>
+        /// <returns>
+        /// Which number tone equals the given frequency.
+        /// </returns>
+        public static float HertzToTone(float hz)
+        {
+            if (hz < float.Epsilon)
+            {
+                return 0;
+            }
+
+            return 12f * Log2(hz / 27.5);
         }
 
         /// <summary>
@@ -696,6 +713,7 @@ namespace ConvertHero.AudioFileHelpers
             foreach(float f in collection)
             {
                 stdev += Math.Pow(f - mean, 2);
+                N++;
             }
 
             return (float)Math.Sqrt(stdev / Math.Max(N, 1));

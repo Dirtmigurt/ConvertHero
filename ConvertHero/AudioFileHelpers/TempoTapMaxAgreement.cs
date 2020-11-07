@@ -69,9 +69,10 @@
         /// <returns>
         /// The tick candidate that had the maximum mutual agreement with the others.
         /// </returns>
-        public (float confidence, float[] ticks) Compute(List<List<float>> tickCandidates)
+        public (float confidence, float[] ticks) Compute(List<List<float>> tickCandidates, float minTempo = 60, float maxTempo = 200)
         {
             List<List<float>> candidatesClone = new List<List<float>>();
+            List<List<float>> outofBandClones = new List<List<float>>();
             // check validity of tickCandidates
             for(int i = 0; i < tickCandidates.Count; i++)
             {
@@ -87,13 +88,29 @@
                         throw new Exception($"TempoTapMaxAgreement: Tick values must be monotonically increasing.");
                     }
                 }
-                candidatesClone.Add(new List<float>(tickCandidates[i]));
+
+                float avgTempo = tickCandidates[i].Count / (tickCandidates[i][tickCandidates[i].Count - 1] / 60f);
+                if (avgTempo < minTempo || avgTempo > maxTempo)
+                {
+                    outofBandClones.Add(new List<float>(tickCandidates[i]));
+                }
+                else
+                {
+                    candidatesClone.Add(new List<float>(tickCandidates[i]));
+                }
+                
             }
 
             // Return no ticks if no candidates are provided.
             if(tickCandidates.Count == 0)
             {
                 return (0, null);
+            }
+
+            // If there were no candidates with a bpm in the specified range, then we need to check all of them.
+            if (candidatesClone.Count == 0)
+            {
+                candidatesClone.AddRange(outofBandClones);
             }
 
             // Remove ticks that are within the first this.minTickTime
@@ -114,7 +131,6 @@
 
             List<float> temp1 = new List<float>(2 * numberMethods);
             List<float> distanceInfogain = new List<float>(numberMethods);
-
             for(int i = 0; i < numberMethods; i++)
             {
                 for(int j = i + 1; j < numberMethods; j++)
@@ -131,10 +147,17 @@
                 temp1.Clear();
             }
 
+            List<TicksAndInfo> tandi = new List<TicksAndInfo>();
+            for(int i = 0; i < numberMethods; i++)
+            {
+                tandi.Add(new TicksAndInfo { InfoGain = distanceInfogain[i], TickCount = candidatesClone[i].Count });
+            }
+
+            tandi = tandi.OrderByDescending(k => k.InfoGain).ToList();
             int selectedMethod = MathHelpers.ArgMax(distanceInfogain);
             Console.WriteLine($"Distance Infogains = {string.Join(", ", distanceInfogain)}");
-            Console.WriteLine($"Tick Counts By Ops = {string.Join(", ", tickCandidates.Select(tc => tc.Count))}");
-            return (distanceInfogain.Average(), tickCandidates[selectedMethod].ToArray());
+            Console.WriteLine($"Tick Counts By Ops = {string.Join(", ", candidatesClone.Select(tc => tc.Count))}");
+            return (distanceInfogain.Average(), candidatesClone[selectedMethod].ToArray());
         }
 
         /// <summary>
@@ -329,6 +352,17 @@
 
                 ticks.RemoveAt(0);
             }
+        }
+    }
+
+    internal class TicksAndInfo
+    {
+        public int TickCount;
+        public float InfoGain;
+
+        public override string ToString()
+        {
+            return $"{{ \"InfoGain\": {this.InfoGain}, \"TickCount\": {this.TickCount}}}";
         }
     }
 }

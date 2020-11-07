@@ -209,6 +209,8 @@
                 allPeakValues.Add(peakSaliences[ii][jj]);
             }
 
+
+            // This filtering is very strict and cuts out very salient peaks just because they are quiet.
             float salienceMean = allPeakValues.Average();
             float overallMeanSalienceThreshold = salienceMean - MathHelpers.StdDev(allPeakValues, salienceMean) * this.peakDistributionThreshold;
 
